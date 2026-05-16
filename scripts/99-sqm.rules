@@ -1,0 +1,38 @@
+# udev rules for UDM Fork (Sky Quality Meter)
+#
+# Install:
+#   sudo cp 99-sqm.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#
+# These rules:
+#   * grant full read/write access to the device for the 'dialout' group
+#   * create symlinks /dev/sqm-* for convenience
+
+# FTDI (Unihedron SQM-LU / SQM-LE / SQM-LU-DL)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-ftdi-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-ftdi-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-ftdi-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6014", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-ftdi-%n"
+
+# WCH CH340 / CH341 (DIY SQM ESP8266 NodeMCU)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-diy-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7522", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-diy-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="5523", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-diy-%n"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="5512", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-diy-%n"
+
+# Silicon Labs CP210x (used by some DIY boards)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-cp210x-%n"
+
+# Prolific PL2303 (used by some DIY boards)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", \
+    GROUP="dialout", MODE="0660", SYMLINK+="sqm-pl2303-%n"

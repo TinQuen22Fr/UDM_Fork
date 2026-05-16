@@ -1,82 +1,41 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
-.idea/
-.vscode/
-
-# Dependencies
-node_modules/
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# Testing
-/coverage
-
-# Next.js
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
-
-# Production builds
-/build
-dist/
-dist
-
-# Environment files (comprehensive coverage)
-
-*token.json*
-*credentials.json*
-
-# Logs and debug files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-dump.rdb
-
-# System files
-.DS_Store
-*.pem
+# Logs
+*.log
+logs/
 
 # Python
 __pycache__/
-*pyc*
-venv/
+*.pyc
+*.pyo
+*.egg-info/
 .venv/
+env/
+venv/
+.mypy_cache/
+.pytest_cache/
 
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
-*.pack
-*.deb
-*.dylib
-
-# Build caches
+# Node
+node_modules/
+build/
+dist/
 .cache/
+.parcel-cache/
+yarn-error.log
+npm-debug.log*
 
-memory/test_credentials.md
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# Mobile development
-android-sdk/
+# UDM runtime data
+/tmp/udm_fork_logs/
+/tmp/udm_fork_firmware/
+
+# Env (keep .env.example only)
+backend/.env
+frontend/.env
+!backend/.env.example
+!frontend/.env.example
+frontend/node_modules/.cache/default-development/0.pack
+frontend/node_modules/.cache/default-development/6.pack
