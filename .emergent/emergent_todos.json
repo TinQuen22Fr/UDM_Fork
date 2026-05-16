@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Phase 1: Get design guidelines + install dependencies",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Build FastAPI backend (USB detection FTDI+CH340, serial protocol, logging, WS)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Build React frontend (Find USB, Info, Readings, Logging, Config, Firmware, Charts, Help)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Add mock mode for hardware-free testing",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Add installation scripts (install.sh, udev rules, README) for Linux",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: End-to-end testing with testing_agent_v3",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: Deliver final source code package",
+    "status": "pending"
+  }
+]
