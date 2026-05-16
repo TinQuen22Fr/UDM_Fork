@@ -107,6 +107,15 @@ class MockSerial:
             )
         elif data.startswith(b"Ix"):
             resp = b"I,00000060\r\n"  # 60s interval
+        elif data.startswith(b"Lcx") or data.startswith(b"Lc"):
+            # Mock RTC read in the format produced by SQM-LU-DL: "Lc,YY-MM-DD HH:MM:SS"
+            from datetime import datetime, timezone as _tz
+            now = datetime.now(_tz.utc)
+            resp = f"Lc,{now.strftime('%y-%m-%d %H:%M:%S')}\r\n".encode("ascii")
+        elif data.startswith(b"Lmx") or data.startswith(b"Lm"):
+            resp = b"Lm,1\r\n"
+        elif data.startswith(b"LIx") or data.startswith(b"LI"):
+            resp = b"LI,0000000060,0000000000,000000000.000\r\n"
         elif data.startswith(b"L"):
             resp = b"L,OK\r\n"
         elif data.startswith(b"zcal"):

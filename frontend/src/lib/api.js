@@ -42,6 +42,15 @@ export const getLoggingStatus = () =>
 export const listLogSessions = () =>
     http.get('/logging/sessions').then((r) => r.data);
 export const logDownloadUrl = (name) => `${API_BASE}/logging/download/${encodeURIComponent(name)}`;
+export const getLogMetadata = () => http.get('/logging/metadata').then((r) => r.data);
+export const setLogMetadata = (data) =>
+    http.post('/logging/metadata', data).then((r) => r.data);
+
+// Calibration extras
+export const setCalibrationValues = (params) =>
+    http.post('/device/calibration/set', params).then((r) => r.data);
+export const getDeviceClock = () => http.get('/device/clock').then((r) => r.data);
+export const getDLSettings = () => http.get('/device/dl_settings').then((r) => r.data);
 
 // Firmware
 export const uploadFirmware = (file) => {

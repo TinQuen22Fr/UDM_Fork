@@ -15,6 +15,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/PageHeader';
+import { DLHeaderForm } from '@/components/DLHeaderForm';
 import { listLogSessions, logDownloadUrl, startLogging, stopLogging } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
 
@@ -174,6 +175,10 @@ export default function LoggingPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                <div className="xl:col-span-12">
+                    <DLHeaderForm />
+                </div>
 
                 <Card className="xl:col-span-12 bg-card/60">
                     <CardHeader>

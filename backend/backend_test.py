@@ -232,7 +232,20 @@ class SQMAPITester:
             data={"action": "disarm"}
         )
 
-        # 16. Calibrate - invalid action (should fail)
+        # 16. NEW: Calibrate - arm dark
+        success, data = self.test(
+            "Calibrate - arm dark (NEW)",
+            "POST",
+            "/device/calibrate",
+            200,
+            data={"action": "arm_dark"}
+        )
+        if success:
+            resp = data.get('response', '')
+            if 'OK' in resp or 'z' in resp:
+                self.log("   ✓ Arm dark calibration command accepted", Colors.GREEN)
+
+        # 16b. Calibrate - invalid action (should fail)
         self.test(
             "Calibrate - invalid action",
             "POST",
@@ -241,9 +254,90 @@ class SQMAPITester:
             data={"action": "invalid"}
         )
 
-        # 17. Start logging
+        # 16c. NEW: Manual calibration set (zcal5/6/7/8)
         success, data = self.test(
-            "Start logging session",
+            "Manual calibration set (NEW)",
+            "POST",
+            "/device/calibration/set",
+            200,
+            data={
+                "light_offset_mpsas": 19.6,
+                "light_temperature_c": 25.0,
+                "dark_period_s": 1.234,
+                "dark_temperature_c": 20.0
+            }
+        )
+        if success:
+            results = data.get('results', [])
+            self.log(f"   Results count: {len(results)} (expected 4)", Colors.YELLOW)
+            if len(results) == 4:
+                self.log("   ✓ All 4 calibration values written", Colors.GREEN)
+            for r in results:
+                self.log(f"   - {r.get('cmd')}: {r.get('response')}", Colors.YELLOW)
+
+        # 16d. NEW: Get device clock (Lcx)
+        success, data = self.test(
+            "Get device clock (NEW)",
+            "GET",
+            "/device/clock",
+            200
+        )
+        if success:
+            resp = data.get('response', '')
+            self.log(f"   Clock response: {resp}", Colors.YELLOW)
+            if 'Lc,' in resp and '-' in resp and ':' in resp:
+                self.log("   ✓ Clock response format correct (Lc,YY-MM-DD HH:MM:SS)", Colors.GREEN)
+
+        # 16e. NEW: Get DL settings (Lmx, LIx)
+        success, data = self.test(
+            "Get DL settings (NEW)",
+            "GET",
+            "/device/dl_settings",
+            200
+        )
+        if success:
+            trigger_mode = data.get('trigger_mode', '')
+            trigger_settings = data.get('trigger_settings', '')
+            self.log(f"   Trigger mode: {trigger_mode}", Colors.YELLOW)
+            self.log(f"   Trigger settings: {trigger_settings}", Colors.YELLOW)
+            if 'Lm,' in trigger_mode and 'LI,' in trigger_settings:
+                self.log("   ✓ DL settings format correct", Colors.GREEN)
+
+        # 16f. NEW: Get logging metadata
+        success, data = self.test(
+            "Get logging metadata (NEW)",
+            "GET",
+            "/logging/metadata",
+            200
+        )
+        if success:
+            self.log(f"   Instrument ID: {data.get('instrument_id')}", Colors.YELLOW)
+            self.log(f"   Location: {data.get('location_name')}", Colors.YELLOW)
+            self.log(f"   Position: {data.get('position')}", Colors.YELLOW)
+
+        # 16g. NEW: Set logging metadata
+        success, data = self.test(
+            "Set logging metadata (NEW)",
+            "POST",
+            "/logging/metadata",
+            200,
+            data={
+                "instrument_id": "SQM-TEST-001",
+                "data_supplier": "Test User",
+                "location_name": "Test Observatory",
+                "position": "45.123, 3.456, 300",
+                "local_timezone": "UTC",
+                "comments": ["Test comment 1", "Test comment 2", "", "", ""]
+            }
+        )
+        if success:
+            self.log(f"   Updated instrument ID: {data.get('instrument_id')}", Colors.YELLOW)
+            if data.get('instrument_id') == "SQM-TEST-001":
+                self.log("   ✓ Metadata updated correctly", Colors.GREEN)
+
+        # 17. Start logging (CSV)
+        success, data = self.test(
+            "Start logging session (CSV)",
             "POST",
             "/logging/start",
             200,
@@ -275,6 +369,64 @@ class SQMAPITester:
         success, data = self.test("Stop logging", "POST", "/logging/stop", 200)
         if success:
             self.log(f"   Active: {data.get('active')}", Colors.YELLOW)
+
+        # 20b. NEW: Start logging with DAT format
+        success, data = self.test(
+            "Start logging session (DAT format - NEW)",
+            "POST",
+            "/logging/start",
+            200,
+            data={
+                "interval_seconds": 1,
+                "format": "dat",
+                "base_name": "test_dat_log.dat"
+            }
+        )
+        if success:
+            file_path = data.get('file_path', '')
+            self.log(f"   File: {file_path}", Colors.YELLOW)
+            if '.dat' in file_path:
+                self.log("   ✓ DAT file created", Colors.GREEN)
+
+        # 20c. Wait for DAT samples
+        self.log("\n⏳ Waiting 3 seconds for DAT logging samples...", Colors.BLUE)
+        time.sleep(3)
+
+        # 20d. Stop DAT logging
+        success, data = self.test("Stop DAT logging", "POST", "/logging/stop", 200)
+        if success:
+            self.log(f"   Active: {data.get('active')}", Colors.YELLOW)
+
+        # 20e. Verify DAT file content
+        success, data = self.test("List logging sessions (verify DAT)", "GET", "/logging/sessions", 200)
+        if success:
+            sessions = data.get('sessions', [])
+            dat_files = [s for s in sessions if s['name'].endswith('.dat')]
+            if dat_files:
+                self.log(f"   ✓ Found {len(dat_files)} DAT file(s)", Colors.GREEN)
+                # Download and check DAT file header
+                dat_name = dat_files[0]['name']
+                try:
+                    url = f"{self.base_url}/logging/download/{dat_name}"
+                    response = self.session.get(url, timeout=10)
+                    if response.status_code == 200:
+                        content = response.text
+                        # Check for canonical Unihedron header
+                        if '# Light Pollution Monitoring Data Format 1.0' in content:
+                            self.log("   ✓ DAT file has canonical Unihedron header", Colors.GREEN)
+                        if '# Device type:' in content and '# Instrument ID:' in content:
+                            self.log("   ✓ DAT file has required metadata fields", Colors.GREEN)
+                        if '# Number of fields per line: 6' in content:
+                            self.log("   ✓ DAT file has correct field count", Colors.GREEN)
+                        if '# UTC Date & Time, Local Date & Time, Temperature, Counts, Frequency, MSAS' in content:
+                            self.log("   ✓ DAT file has correct field names", Colors.GREEN)
+                        # Check for semicolon-separated records
+                        lines = content.split('\n')
+                        data_lines = [l for l in lines if l and not l.startswith('#')]
+                        if data_lines and ';' in data_lines[0]:
+                            self.log("   ✓ DAT file uses semicolon-separated records", Colors.GREEN)
+                except Exception as e:
+                    self.log(f"   ✗ Failed to verify DAT content: {e}", Colors.RED)
 
         # 21. List logging sessions
         success, data = self.test("List logging sessions", "GET", "/logging/sessions", 200)

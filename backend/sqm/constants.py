@@ -48,16 +48,42 @@ CMD_INFO = b"ix"  # device info
 CMD_READING = b"rx"  # reading
 CMD_CAL_INFO = b"cx"  # calibration info
 CMD_UNAVG_READING = b"ux"  # un-averaged reading
-CMD_ARM_CAL = b"zcalAx"  # arm calibration (light)
+CMD_ARM_LIGHT_CAL = b"zcalAx"  # arm calibration (light)
+CMD_ARM_DARK_CAL = b"zcalBx"  # arm calibration (dark)
 CMD_DISARM_CAL = b"zcalDx"  # disarm calibration
 CMD_BOOTLOADER = b"x4x5x6x"  # enter bootloader (firmware update)
 CMD_INTERVAL_GET = b"Ix"  # logging interval get
+# Datalogger-specific commands (SQM-LU-DL / SQM-LU-DL-V)
+CMD_DL_CLOCK_READ = b"Lcx"  # read on-device RTC
+CMD_DL_TRIGGER_MODE_READ = b"Lmx"  # read DL trigger mode
+CMD_DL_TRIGGER_SETTINGS_READ = b"LIx"  # read DL trigger settings (seconds/minutes/threshold)
 
 
 def cmd_set_interval_seconds(seconds: int) -> bytes:
     """Build the Lxxxxxxxxx command to set logging interval (seconds)."""
     s = max(0, min(seconds, 99999))
     return f"Lxxx{s:08d}x".encode("ascii")
+
+
+# --- Manual calibration value setters (Unihedron firmware)
+# zcal5XXXXXXXX.XX  -> Light calibration Offset (mpsas)
+# zcal6XXXXXXXX.XX  -> Light calibration Temperature (Celsius)
+# zcal7XXXXXXX.XXX  -> Dark calibration Period (seconds)
+# zcal8XXXXXXXX.XX  -> Dark calibration Temperature (Celsius)
+def cmd_set_light_cal_offset(mpsas: float) -> bytes:
+    return f"zcal5{mpsas:011.2f}x".replace(" ", "0").encode("ascii")
+
+
+def cmd_set_light_cal_temperature(celsius: float) -> bytes:
+    return f"zcal6{celsius:011.2f}x".replace(" ", "0").encode("ascii")
+
+
+def cmd_set_dark_cal_period(seconds: float) -> bytes:
+    return f"zcal7{seconds:011.3f}x".replace(" ", "0").encode("ascii")
+
+
+def cmd_set_dark_cal_temperature(celsius: float) -> bytes:
+    return f"zcal8{celsius:011.2f}x".replace(" ", "0").encode("ascii")
 
 
 DEVICE_VENDORS = {

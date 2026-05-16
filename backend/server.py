@@ -58,7 +58,11 @@ from sqm.constants import (
     DEFAULT_BYTESIZE,
     DEFAULT_PARITY,
     DEFAULT_STOPBITS,
+    cmd_set_dark_cal_period,
+    cmd_set_dark_cal_temperature,
     cmd_set_interval_seconds,
+    cmd_set_light_cal_offset,
+    cmd_set_light_cal_temperature,
 )
 from sqm.discovery import enumerate_serial_ports
 from sqm.logging_service import LOG_DIR_DEFAULT, LoggingService
@@ -108,7 +112,31 @@ class IntervalRequest(BaseModel):
 
 
 class CalibrateRequest(BaseModel):
-    action: str = Field(..., description="'arm_light' | 'disarm'")
+    action: str = Field(..., description="'arm_light' | 'arm_dark' | 'disarm'")
+
+
+class CalSetRequest(BaseModel):
+    light_offset_mpsas: Optional[float] = None
+    light_temperature_c: Optional[float] = None
+    dark_period_s: Optional[float] = None
+    dark_temperature_c: Optional[float] = None
+
+
+class LogMetadataRequest(BaseModel):
+    instrument_id: Optional[str] = None
+    data_supplier: Optional[str] = None
+    location_name: Optional[str] = None
+    position: Optional[str] = None
+    local_timezone: Optional[str] = None
+    time_sync: Optional[str] = None
+    moving_stationary_position: Optional[str] = None
+    moving_fixed_direction: Optional[str] = None
+    number_of_channels: Optional[int] = None
+    filters_per_channel: Optional[str] = None
+    measurement_direction_per_channel: Optional[str] = None
+    field_of_view_degrees: Optional[float] = None
+    cover_offset_value: Optional[float] = None
+    comments: Optional[list] = None
 
 
 class LoggingStartRequest(BaseModel):
@@ -266,11 +294,69 @@ async def device_calibrate(req: CalibrateRequest):
     _require_connected()
     if req.action == "arm_light":
         resp = await client.send_raw(b"zcalAx")
+    elif req.action == "arm_dark":
+        resp = await client.send_raw(b"zcalBx")
     elif req.action == "disarm":
         resp = await client.send_raw(b"zcalDx")
     else:
-        raise HTTPException(status_code=400, detail="action must be 'arm_light' or 'disarm'")
+        raise HTTPException(status_code=400, detail="action must be 'arm_light', 'arm_dark' or 'disarm'")
     return {"action": req.action, "response": resp}
+
+
+@api.post("/device/calibration/set")
+async def device_calibration_set(req: CalSetRequest):
+    """Manually write calibration registers (zcal5/6/7/8)."""
+    _require_connected()
+    sent = []
+    if req.light_offset_mpsas is not None:
+        sent.append({"cmd": "zcal5", "response": await client.send_raw(cmd_set_light_cal_offset(req.light_offset_mpsas))})
+    if req.light_temperature_c is not None:
+        sent.append({"cmd": "zcal6", "response": await client.send_raw(cmd_set_light_cal_temperature(req.light_temperature_c))})
+    if req.dark_period_s is not None:
+        sent.append({"cmd": "zcal7", "response": await client.send_raw(cmd_set_dark_cal_period(req.dark_period_s))})
+    if req.dark_temperature_c is not None:
+        sent.append({"cmd": "zcal8", "response": await client.send_raw(cmd_set_dark_cal_temperature(req.dark_temperature_c))})
+    return {"results": sent}
+
+
+@api.get("/device/clock")
+async def device_clock():
+    """Read on-device RTC (DL models)."""
+    _require_connected()
+    resp = await client.send_raw(b"Lcx")
+    return {"response": resp.strip()}
+
+
+@api.get("/device/dl_settings")
+async def device_dl_settings():
+    """Read DL trigger mode + thresholds."""
+    _require_connected()
+    mode = await client.send_raw(b"Lmx")
+    settings = await client.send_raw(b"LIx")
+    return {"trigger_mode": mode.strip(), "trigger_settings": settings.strip()}
+
+
+# --- Log metadata (DL Header form) ---
+
+@api.get("/logging/metadata")
+async def logging_get_metadata():
+    m = logging_service.metadata
+    return {
+        k: getattr(m, k)
+        for k in (
+            "instrument_id", "data_supplier", "location_name", "position",
+            "local_timezone", "time_sync", "moving_stationary_position",
+            "moving_fixed_direction", "number_of_channels", "filters_per_channel",
+            "measurement_direction_per_channel", "field_of_view_degrees",
+            "cover_offset_value", "comments",
+        )
+    }
+
+
+@api.post("/logging/metadata")
+async def logging_set_metadata(req: LogMetadataRequest):
+    logging_service.update_metadata(**req.model_dump(exclude_none=True))
+    return await logging_get_metadata()
 
 
 # ---------- Logging ----------
