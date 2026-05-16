@@ -137,9 +137,25 @@ udm-fork/
 | `cx`             | Calibration info                     | yes |
 | `Ix`             | Get logging interval                 | yes |
 | `Lxxxxxxxxx`     | Set logging interval (seconds)       | yes |
+| `Lcx`            | Read on-device RTC (DL models)       | yes |
+| `Lmx`            | Read DL trigger mode                 | yes |
+| `LIx`            | Read DL trigger settings             | yes |
 | `zcalAx`         | Arm light calibration                | yes |
+| `zcalBx`         | Arm dark calibration                 | yes |
 | `zcalDx`         | Disarm calibration                   | yes |
+| `zcal5XXXXXXXX.XX` | Set Light Calibration Offset (mpsas) | yes |
+| `zcal6XXXXXXXX.XX` | Set Light Calibration Temperature (°C) | yes |
+| `zcal7XXXXXXX.XXX` | Set Dark Calibration Period (s) | yes |
+| `zcal8XXXXXXXX.XX` | Set Dark Calibration Temperature (°C) | yes |
 | Raw passthrough  | Console page: any command            | yes |
+
+### DAT file format
+
+When you log with **format = `dat`**, the file is written using the canonical
+Unihedron / darksky.org [**Light Pollution Monitoring Data Format 1.0**](https://darksky.org/app/uploads/bsk-pdf-manager/47_SKYGLOW_DEFINITIONS.PDF)
+header — identical to the official UDM. The metadata is configurable from the
+**DL Header (DAT metadata)** form on the Logging page (Instrument ID, Location
+name, Position lat/lon/elev, Timezone, Comments, etc.).
 
 The parser is forgiving: it accepts the canonical Unihedron CSV format
 (e.g. `r, 19.16m,0000022921Hz,0000000020c,0000000.000s, 022.4C`) **and**
