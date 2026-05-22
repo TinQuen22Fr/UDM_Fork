@@ -82,11 +82,39 @@ fi
 log "Setting up React frontend..."
 cd "$ROOT/frontend"
 
-# Need Node first
+# Need Node first - offer to auto-install on Debian/Ubuntu
 if ! command -v node >/dev/null 2>&1; then
-    err "Node.js is not installed."
-    err "Install it with:  sudo apt-get install -y nodejs npm"
-    err "Or (preferred, newer Node): https://github.com/nodesource/distributions"
+    warn "Node.js is not installed."
+    if command -v apt-get >/dev/null 2>&1; then
+        echo ""
+        echo "  Two options to install Node.js on Ubuntu/Debian:"
+        echo "    1) apt-get nodejs (simple, but may be an old version)"
+        echo "    2) NodeSource LTS 20.x (recommended, newer, more compatible)"
+        echo "    3) skip - I'll install it myself"
+        read -r -p "  Choice [1/2/3]: " nopt
+        case "$nopt" in
+            1)
+                sudo apt-get update
+                sudo apt-get install -y nodejs npm
+                ;;
+            2)
+                log "Installing Node.js 20 LTS from NodeSource..."
+                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                sudo apt-get install -y nodejs
+                ;;
+            *)
+                err "Skipped. Install Node.js manually then re-run this script."
+                exit 1
+                ;;
+        esac
+    else
+        err "Install Node.js manually (see https://nodejs.org/) then re-run this script."
+        exit 1
+    fi
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+    err "Node.js still not available after install. Aborting."
     exit 1
 fi
 log "Using node $(node --version)"
