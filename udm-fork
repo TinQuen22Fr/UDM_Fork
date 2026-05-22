@@ -2,19 +2,19 @@
 # UDM Fork - one-shot launcher (à la "./udm" of the original Unihedron UDM).
 #
 # Behavior:
-#   ./udm           start services if needed, then open the app window
-#   ./udm start     start (or restart) the systemd services
-#   ./udm stop      stop the services
-#   ./udm restart   restart the services
-#   ./udm status    show service status
-#   ./udm logs      tail backend + frontend logs
-#   ./udm open      just open the app window (assumes services are running)
-#   ./udm install   first-time install: deps + systemd services + desktop entry
-#   ./udm doctor    diagnostic checks
-#   ./udm --help    show this help
+#   ./udm-fork           start services if needed, then open the app window
+#   ./udm-fork start     start (or restart) the systemd services
+#   ./udm-fork stop      stop the services
+#   ./udm-fork restart   restart the services
+#   ./udm-fork status    show service status
+#   ./udm-fork logs      tail backend + frontend logs
+#   ./udm-fork open      just open the app window (assumes services are running)
+#   ./udm-fork install   first-time install: deps + systemd services + desktop entry
+#   ./udm-fork doctor    diagnostic checks
+#   ./udm-fork --help    show this help
 #
 # Without 'install', the systemd services must already exist
-# (created once by 'install-systemd.sh' or by './udm install').
+# (created once by 'install-systemd.sh' or by './udm-fork install').
 
 set -euo pipefail
 
@@ -54,7 +54,7 @@ cmd_start() {
         systemctl --user start udm-fork-backend.service udm-fork-frontend.service
     else
         warn "Systemd services not installed. Running in foreground (Ctrl+C to stop)..."
-        warn "Tip: run './udm install' once to set up background services + menu entry."
+        warn "Tip: run './udm-fork install' once to set up background services + menu entry."
         # Start backend in background, frontend in foreground
         "$HERE/scripts/run-backend.sh" >/tmp/udm-fork-backend.log 2>&1 &
         BACK_PID=$!
@@ -78,7 +78,7 @@ cmd_restart() {
         log "Restarting systemd services..."
         systemctl --user restart udm-fork-backend.service udm-fork-frontend.service
     else
-        warn "Systemd services not installed. Use Ctrl+C and re-run ./udm."
+        warn "Systemd services not installed. Use Ctrl+C and re-run ./udm-fork."
         exit 1
     fi
 }
@@ -120,19 +120,19 @@ cmd_install() {
     "$HERE/scripts/install-systemd.sh"
     "$HERE/scripts/install-desktop.sh"
     echo ""
-    log "All set! Launch with:  ./udm     (or click 'UDM Fork' in your apps menu)"
+    log "All set! Launch with:  ./udm-fork     (or click 'UDM Fork' in your apps menu)"
 }
 
 cmd_doctor() {
     hi "UDM Fork doctor"
     echo "  Root           : $HERE"
-    echo "  Python venv    : $([ -x backend/.venv/bin/python ] && backend/.venv/bin/python --version || echo 'MISSING (run ./udm install)')"
+    echo "  Python venv    : $([ -x backend/.venv/bin/python ] && backend/.venv/bin/python --version || echo 'MISSING (run ./udm-fork install)')"
     echo "  Node           : $(node --version 2>/dev/null || echo MISSING)"
     echo "  yarn (real?)   : $(yarn --version 2>/dev/null || echo MISSING)"
     if has_systemd_units; then
         echo "  systemd units  : installed"
     else
-        echo "  systemd units  : NOT installed (run ./udm install)"
+        echo "  systemd units  : NOT installed (run ./udm-fork install)"
     fi
     backend_up  && echo "  Backend  :8001 : UP" || echo "  Backend  :8001 : DOWN"
     frontend_up && echo "  Frontend :3000 : UP" || echo "  Frontend :3000 : DOWN"
