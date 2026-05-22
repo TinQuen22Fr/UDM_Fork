@@ -50,7 +50,14 @@ done
 
 # --- reload + enable + start ---
 systemctl --user daemon-reload
-systemctl --user enable --now udm-fork-backend.service udm-fork-frontend.service
+systemctl --user enable udm-fork-backend.service udm-fork-frontend.service
+
+# Always restart so that a fresh `git pull` is picked up by both services.
+# Without this, `enable --now` is a no-op when units are already running,
+# which leaves them executing the previous backend code (causing 404
+# "Not found" errors on newly added endpoints).
+log "Restarting services to pick up latest code..."
+systemctl --user restart udm-fork-backend.service udm-fork-frontend.service
 
 sleep 2
 echo ""
