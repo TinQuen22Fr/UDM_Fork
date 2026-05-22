@@ -40,18 +40,38 @@ The app is a **hybrid local web app**:
 ```bash
 git clone <your-fork-url> udm-fork
 cd udm-fork
-./scripts/install.sh
+
+# One-shot installer: deps + systemd services + 'UDM Fork' app menu entry
+./udm install
 ```
 
-Then, in two separate terminals (or via your favourite process manager):
+Then just run:
 
 ```bash
-# Terminal 1 — backend
-./scripts/run-backend.sh
-
-# Terminal 2 — frontend
-./scripts/run-frontend.sh
+./udm
 ```
+
+…and the app opens in its own native-feeling window. The original
+Unihedron UDM was launched with `./udm` too — this fork keeps the same habit.
+
+### All `./udm` commands
+
+| Command | What it does |
+|---|---|
+| `./udm` | start services if needed, then open the app window |
+| `./udm start` | start (or restart) the systemd services |
+| `./udm stop` | stop the services |
+| `./udm restart` | restart the services |
+| `./udm status` | show service status |
+| `./udm logs` | tail backend + frontend logs |
+| `./udm open` | just open the app window (assumes services are running) |
+| `./udm install` | first-time install (deps + systemd + desktop entry) |
+| `./udm doctor` | diagnostic checks (Python, Node, services, udev, dialout…) |
+
+### Manual / step-by-step alternative
+
+If you prefer not to use the single `./udm` entrypoint, run the dedicated
+installers individually:
 
 Open <http://localhost:3000>.
 

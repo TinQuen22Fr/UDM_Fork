@@ -165,14 +165,19 @@ export function AppShell({ children }) {
 
                     <div className="ml-auto flex items-center gap-2 sm:gap-4">
                         {latestReading?.mpsas != null && (
-                            <div className="hidden md:flex items-center gap-3 text-xs">
-                                <div className="font-mono tabular-nums">
+                            <div className="hidden md:flex items-center gap-3 text-xs font-variant-numeric tabular-nums">
+                                <div className="font-mono">
                                     <span className="text-muted-foreground mr-1">mpsas</span>
-                                    <span className="text-foreground font-semibold">{latestReading.mpsas?.toFixed(2)}</span>
+                                    <span className="text-foreground font-semibold inline-block min-w-[3.5ch] text-right">
+                                        {latestReading.mpsas != null ? latestReading.mpsas.toFixed(2) : '—'}
+                                    </span>
                                 </div>
-                                <div className="font-mono tabular-nums">
+                                <div className="font-mono">
                                     <span className="text-muted-foreground mr-1">T</span>
-                                    <span>{latestReading.temperature_c?.toFixed(1)}°C</span>
+                                    <span className="inline-block min-w-[3.5ch] text-right">
+                                        {latestReading.temperature_c != null ? latestReading.temperature_c.toFixed(1) : '—'}
+                                    </span>
+                                    <span>°C</span>
                                 </div>
                             </div>
                         )}

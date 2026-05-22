@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# UDM Fork - one-shot launcher (à la "./udm" of the original Unihedron UDM).
+#
+# Behavior:
+#   ./udm           start services if needed, then open the app window
+#   ./udm start     start (or restart) the systemd services
+#   ./udm stop      stop the services
+#   ./udm restart   restart the services
+#   ./udm status    show service status
+#   ./udm logs      tail backend + frontend logs
+#   ./udm open      just open the app window (assumes services are running)
+#   ./udm install   first-time install: deps + systemd services + desktop entry
+#   ./udm doctor    diagnostic checks
+#   ./udm --help    show this help
+#
+# Without 'install', the systemd services must already exist
+# (created once by 'install-systemd.sh' or by './udm install').
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$HERE"
+
+C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'; C_RED=$'\e[31m'; C_BLUE=$'\e[34m'; C_RESET=$'\e[0m'
+log()  { echo "${C_GREEN}>>>${C_RESET} $*"; }
+warn() { echo "${C_YELLOW}!! ${C_RESET} $*"; }
+err()  { echo "${C_RED}xx ${C_RESET} $*" >&2; }
+hi()   { echo "${C_BLUE}** ${C_RESET} $*"; }
+
+USE_SYSTEMD=1
+if ! command -v systemctl >/dev/null 2>&1; then
+    USE_SYSTEMD=0
+fi
+
+has_systemd_units() {
+    [ "$USE_SYSTEMD" = "1" ] && systemctl --user list-unit-files 2>/dev/null \
+        | grep -q '^udm-fork-backend.service' || return 1
+}
+
+backend_up() {
+    curl -fsS --max-time 1 http://localhost:8001/api/ >/dev/null 2>&1
+}
+frontend_up() {
+    curl -fsS --max-time 1 http://localhost:3000/ >/dev/null 2>&1
+}
+
+usage() {
+    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+cmd_start() {
+    if has_systemd_units; then
+        log "Starting systemd services..."
+        systemctl --user start udm-fork-backend.service udm-fork-frontend.service
+    else
+        warn "Systemd services not installed. Running in foreground (Ctrl+C to stop)..."
+        warn "Tip: run './udm install' once to set up background services + menu entry."
+        # Start backend in background, frontend in foreground
+        "$HERE/scripts/run-backend.sh" >/tmp/udm-fork-backend.log 2>&1 &
+        BACK_PID=$!
+        trap "kill $BACK_PID 2>/dev/null || true" EXIT INT TERM
+        sleep 2
+        exec "$HERE/scripts/run-frontend.sh"
+    fi
+}
+
+cmd_stop() {
+    if has_systemd_units; then
+        log "Stopping systemd services..."
+        systemctl --user stop udm-fork-frontend.service udm-fork-backend.service || true
+    else
+        warn "Systemd services not installed (nothing to stop)."
+    fi
+}
+
+cmd_restart() {
+    if has_systemd_units; then
+        log "Restarting systemd services..."
+        systemctl --user restart udm-fork-backend.service udm-fork-frontend.service
+    else
+        warn "Systemd services not installed. Use Ctrl+C and re-run ./udm."
+        exit 1
+    fi
+}
+
+cmd_status() {
+    if has_systemd_units; then
+        systemctl --user --no-pager status udm-fork-backend.service udm-fork-frontend.service || true
+    else
+        hi "Systemd services not installed."
+        backend_up && hi "Backend  : RUNNING (http://localhost:8001)" || hi "Backend  : DOWN"
+        frontend_up && hi "Frontend : RUNNING (http://localhost:3000)" || hi "Frontend : DOWN"
+    fi
+}
+
+cmd_logs() {
+    if has_systemd_units; then
+        exec journalctl --user -u udm-fork-backend -u udm-fork-frontend -f --output=short-iso
+    fi
+    err "Systemd services not installed; no journal available."
+    exit 1
+}
+
+cmd_open() {
+    if ! backend_up; then
+        warn "Backend not running; trying to start it..."
+        cmd_start
+    fi
+    # Wait up to 15s for the frontend
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+        if frontend_up; then break; fi
+        sleep 1
+    done
+    exec "$HERE/scripts/launch-udm.sh" "$@"
+}
+
+cmd_install() {
+    log "First-time install: dependencies, systemd services, desktop entry..."
+    "$HERE/scripts/install.sh"
+    "$HERE/scripts/install-systemd.sh"
+    "$HERE/scripts/install-desktop.sh"
+    echo ""
+    log "All set! Launch with:  ./udm     (or click 'UDM Fork' in your apps menu)"
+}
+
+cmd_doctor() {
+    hi "UDM Fork doctor"
+    echo "  Root           : $HERE"
+    echo "  Python venv    : $([ -x backend/.venv/bin/python ] && backend/.venv/bin/python --version || echo 'MISSING (run ./udm install)')"
+    echo "  Node           : $(node --version 2>/dev/null || echo MISSING)"
+    echo "  yarn (real?)   : $(yarn --version 2>/dev/null || echo MISSING)"
+    if has_systemd_units; then
+        echo "  systemd units  : installed"
+    else
+        echo "  systemd units  : NOT installed (run ./udm install)"
+    fi
+    backend_up  && echo "  Backend  :8001 : UP" || echo "  Backend  :8001 : DOWN"
+    frontend_up && echo "  Frontend :3000 : UP" || echo "  Frontend :3000 : DOWN"
+    if [ -f /etc/udev/rules.d/99-sqm.rules ]; then
+        echo "  udev rules     : installed"
+    else
+        echo "  udev rules     : NOT installed"
+    fi
+    if id -nG "$USER" | grep -qw dialout; then
+        echo "  dialout group  : OK"
+    else
+        echo "  dialout group  : missing (sudo usermod -aG dialout \$USER)"
+    fi
+    if systemctl is-active --quiet ModemManager 2>/dev/null; then
+        warn "ModemManager is RUNNING (can grab /dev/ttyUSB*). Disable with:"
+        warn "  sudo systemctl disable --now ModemManager.service"
+    fi
+}
+
+case "${1:-}" in
+    ""|open)        shift || true; cmd_open "$@" ;;
+    start)          cmd_start ;;
+    stop)           cmd_stop ;;
+    restart)        cmd_restart ;;
+    status)         cmd_status ;;
+    logs)           cmd_logs ;;
+    install)        cmd_install ;;
+    doctor)         cmd_doctor ;;
+    -h|--help|help) usage ;;
+    *)              err "Unknown command: $1"; echo ""; usage; exit 1 ;;
+esac
