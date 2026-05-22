@@ -8,6 +8,7 @@ import { UploadCloud, Loader2, FileBox, ZapOff, AlertTriangle, Info as InfoIcon 
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PageHeader } from '@/components/PageHeader';
+import { GitHubReleasesCard } from '@/components/GitHubReleasesCard';
 import { flashFirmware, getFirmwareStatus, listFirmware, uploadFirmware } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
 
@@ -202,6 +203,10 @@ export default function FirmwarePage() {
                         )}
                     </CardContent>
                 </Card>
+
+                <div className="xl:col-span-12">
+                    <GitHubReleasesCard onDownloaded={() => refresh()} />
+                </div>
             </div>
         </div>
     );

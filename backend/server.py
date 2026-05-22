@@ -67,6 +67,15 @@ from sqm.constants import (
 from sqm.discovery import enumerate_serial_ports
 from sqm.logging_service import LOG_DIR_DEFAULT, LoggingService
 from sqm.serial_client import ConnectionParams, MOCK_MODE, SQMSerialClient, is_mock_mode
+from sqm.sqm_pro import (
+    cmd_sqm_pro_set_contrast,
+    cmd_sqm_pro_set_sqm_offset,
+    cmd_sqm_pro_set_temp_offset,
+    detect_sqm_pro,
+    parse_gps,
+    parse_sqm_pro_config,
+    parse_weather,
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -120,6 +129,16 @@ class CalSetRequest(BaseModel):
     light_temperature_c: Optional[float] = None
     dark_period_s: Optional[float] = None
     dark_temperature_c: Optional[float] = None
+
+
+class SQMProCalRequest(BaseModel):
+    sqm_offset_mpsas: Optional[float] = None
+    temp_offset_c: Optional[float] = None
+    display_contrast: Optional[int] = None
+    auto_temp_cal: Optional[bool] = None
+    oled_on: Optional[bool] = None
+    auto_contrast: Optional[bool] = None
+    factory_reset: Optional[bool] = None
 
 
 class LogMetadataRequest(BaseModel):
@@ -334,6 +353,172 @@ async def device_dl_settings():
     mode = await client.send_raw(b"Lmx")
     settings = await client.send_raw(b"LIx")
     return {"trigger_mode": mode.strip(), "trigger_settings": settings.strip()}
+
+
+# --- SQM Pro firmware extensions (ESP8266 DIY) ---
+
+@api.get("/device/weather")
+async def device_weather():
+    """Send the 'w' (extended weather) command to a SQM Pro and parse the response."""
+    _require_connected()
+    try:
+        resp = await client.send_raw(b"wx")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"weather command failed: {e}")
+    w = parse_weather(resp)
+    if w.mpsas is None and w.temperature_c is None and not w.raw.startswith("w"):
+        # Firmware doesn't support 'w' (likely a stock Unihedron)
+        raise HTTPException(status_code=400, detail="Device did not return weather data (firmware may not support 'wx')")
+    w.timestamp = datetime.now(timezone.utc).isoformat()
+    return w.to_dict()
+
+
+@api.get("/device/gps")
+async def device_gps():
+    """Send the 'g0' command (GPS GGA-like position) and parse the response."""
+    _require_connected()
+    try:
+        resp = await client.send_raw(b"g0x")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"gps command failed: {e}")
+    g = parse_gps(resp)
+    g.timestamp = datetime.now(timezone.utc).isoformat()
+    return g.to_dict()
+
+
+@api.get("/device/sqm_pro/config")
+async def device_sqm_pro_config():
+    """Read SQM Pro config (g command)."""
+    _require_connected()
+    try:
+        resp = await client.send_raw(b"gx")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"config command failed: {e}")
+    c = parse_sqm_pro_config(resp)
+    return c.to_dict()
+
+
+@api.post("/device/sqm_pro/calibration")
+async def device_sqm_pro_calibration(req: SQMProCalRequest):
+    """Write SQM Pro calibration registers."""
+    _require_connected()
+    sent = []
+    if req.sqm_offset_mpsas is not None:
+        cmd = cmd_sqm_pro_set_sqm_offset(req.sqm_offset_mpsas)
+        sent.append({"cmd": cmd.decode("ascii"), "response": (await client.send_raw(cmd)).strip()})
+    if req.temp_offset_c is not None:
+        cmd = cmd_sqm_pro_set_temp_offset(req.temp_offset_c)
+        sent.append({"cmd": cmd.decode("ascii"), "response": (await client.send_raw(cmd)).strip()})
+    if req.display_contrast is not None:
+        cmd = cmd_sqm_pro_set_contrast(req.display_contrast)
+        sent.append({"cmd": cmd.decode("ascii"), "response": (await client.send_raw(cmd)).strip()})
+    if req.auto_temp_cal is True:
+        sent.append({"cmd": "zcalex", "response": (await client.send_raw(b"zcalex")).strip()})
+    elif req.auto_temp_cal is False:
+        sent.append({"cmd": "zcaldx", "response": (await client.send_raw(b"zcaldx")).strip()})
+    if req.oled_on is True:
+        sent.append({"cmd": "A51x", "response": (await client.send_raw(b"A51x")).strip()})
+    elif req.oled_on is False:
+        sent.append({"cmd": "A50x", "response": (await client.send_raw(b"A50x")).strip()})
+    if req.auto_contrast is True:
+        sent.append({"cmd": "A5ex", "response": (await client.send_raw(b"A5ex")).strip()})
+    elif req.auto_contrast is False:
+        sent.append({"cmd": "A5dx", "response": (await client.send_raw(b"A5dx")).strip()})
+    if req.factory_reset:
+        sent.append({"cmd": "zcalDx", "response": (await client.send_raw(b"zcalDx")).strip()})
+    return {"results": sent}
+
+
+# --- GitHub Releases proxy (for the Firmware page) ---
+
+import time as _time
+
+_releases_cache: dict = {"data": None, "ts": 0.0, "repo": None}
+
+
+@api.get("/firmware/releases")
+async def firmware_releases(repo: str = "TinQuen22Fr/SQM-Pro-ESP8266"):
+    """Proxy the GitHub Releases API with a 5-minute cache.
+
+    Returns a simplified list with name, tag, body, html_url and binary assets.
+    """
+    import urllib.request
+    import json as _json
+
+    now = _time.time()
+    if (
+        _releases_cache["data"] is not None
+        and _releases_cache["repo"] == repo
+        and (now - _releases_cache["ts"]) < 300
+    ):
+        return _releases_cache["data"]
+
+    url = f"https://api.github.com/repos/{repo}/releases?per_page=20"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "udm-fork",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ['GITHUB_TOKEN']}"
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        loop = asyncio.get_running_loop()
+        body = await loop.run_in_executor(
+            None, lambda: urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
+        )
+        data = _json.loads(body)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch GitHub releases: {e}")
+
+    simplified = []
+    for r in data:
+        simplified.append({
+            "name": r.get("name") or r.get("tag_name"),
+            "tag_name": r.get("tag_name"),
+            "html_url": r.get("html_url"),
+            "published_at": r.get("published_at"),
+            "prerelease": r.get("prerelease", False),
+            "body": r.get("body", "") or "",
+            "assets": [
+                {
+                    "name": a.get("name"),
+                    "size_bytes": a.get("size"),
+                    "download_url": a.get("browser_download_url"),
+                    "content_type": a.get("content_type"),
+                }
+                for a in r.get("assets", [])
+                if (a.get("name") or "").lower().endswith((".bin", ".hex", ".zip"))
+            ],
+        })
+
+    out = {"repo": repo, "count": len(simplified), "releases": simplified}
+    _releases_cache.update({"data": out, "ts": now, "repo": repo})
+    return out
+
+
+class FetchReleaseRequest(BaseModel):
+    url: str
+    file_name: Optional[str] = None
+
+
+@api.post("/firmware/fetch_release")
+async def firmware_fetch_release(req: FetchReleaseRequest):
+    """Download a release asset (.bin) into FIRMWARE_DIR so it can be flashed."""
+    if not req.url.startswith("https://github.com/") and not req.url.startswith("https://objects.githubusercontent.com/"):
+        raise HTTPException(status_code=400, detail="Only GitHub-hosted release assets are allowed")
+    import urllib.request
+    name = req.file_name or Path(req.url).name.split("?")[0]
+    name = Path(name).name  # strip any slashes
+    if not name.lower().endswith((".bin", ".hex")):
+        name += ".bin"
+    dst = FIRMWARE_DIR / name
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, urllib.request.urlretrieve, req.url, str(dst))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Download failed: {e}")
+    return {"name": name, "size_bytes": dst.stat().st_size, "path": str(dst)}
 
 
 # --- Log metadata (DL Header form) ---

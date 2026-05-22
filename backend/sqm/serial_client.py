@@ -120,6 +120,27 @@ class MockSerial:
             resp = b"L,OK\r\n"
         elif data.startswith(b"zcal"):
             resp = b"z,OK\r\n"
+        elif data.startswith(b"wx") or data.startswith(b"w"):
+            # SQM Pro extended weather response
+            t = time.time() - self._t0
+            mpsas = 19.20 + 0.5 * random.uniform(-1, 1)
+            dmpsas = abs(random.uniform(-0.05, 0.15))
+            ir = random.randint(10, 200)
+            vis = random.randint(50, 500)
+            counts = int(20 + t)
+            hum = random.randint(55, 75)
+            pres = random.randint(1008, 1018)
+            temp = 18.0 + 4.0 * random.uniform(-1, 1)
+            resp = (
+                f"w,{mpsas:6.2f}m,{dmpsas:.2f}e,{ir:05d}i,{vis:05d}v,"
+                f"{counts:010d}c,A5,11,{hum:03d}h,{pres:04d}p,{temp:6.1f}C\r\n"
+            ).encode("ascii")
+        elif data.startswith(b"g0x") or data.startswith(b"g0"):
+            # GPS NEO-6 GGA-like (mock: Paris)
+            resp = b"GGA,213045.000,4851.4350,N,00220.4173,E,1,08,\r\n"
+        elif data.startswith(b"gx") or (data.startswith(b"g") and not data.startswith(b"g0")):
+            # SQM Pro read-config response
+            resp = b"g, 0.50m, 0.0C,TC:Y,A5,11,DC:128\r\n"
         else:
             resp = b"?,UNKNOWN\r\n"
         self._buf += resp

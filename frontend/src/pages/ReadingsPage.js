@@ -7,6 +7,7 @@ import { Loader2, Gauge, Thermometer, Activity, Timer, RefreshCw } from 'lucide-
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard } from '@/components/StatCard';
+import { WeatherCard, GpsCard } from '@/components/SQMProCards';
 import { getDeviceReading } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
 
@@ -165,6 +166,11 @@ export default function ReadingsPage() {
                         )}
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 mt-6">
+                <WeatherCard connected={status.connected} />
+                <GpsCard connected={status.connected} />
             </div>
         </div>
     );

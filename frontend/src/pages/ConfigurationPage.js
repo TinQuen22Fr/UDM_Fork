@@ -238,6 +238,10 @@ export default function ConfigurationPage() {
                         </Button>
                     </CardContent>
                 </Card>
+
+                <div className="xl:col-span-12">
+                    <SQMProCalibrationCard connected={status.connected} />
+                </div>
             </div>
         </div>
     );

@@ -68,6 +68,19 @@ export const flashFirmware = (params) =>
 export const getFirmwareStatus = () =>
     http.get('/firmware/status').then((r) => r.data);
 
+// SQM Pro extensions
+export const getWeather = () => http.get('/device/weather').then((r) => r.data);
+export const getGps = () => http.get('/device/gps').then((r) => r.data);
+export const getSqmProConfig = () => http.get('/device/sqm_pro/config').then((r) => r.data);
+export const setSqmProCalibration = (data) =>
+    http.post('/device/sqm_pro/calibration', data).then((r) => r.data);
+
+// GitHub firmware releases (proxy)
+export const fetchFirmwareReleases = (repo = 'TinQuen22Fr/SQM-Pro-ESP8266') =>
+    http.get('/firmware/releases', { params: { repo } }).then((r) => r.data);
+export const downloadFirmwareRelease = (url, file_name) =>
+    http.post('/firmware/fetch_release', { url, file_name }).then((r) => r.data);
+
 // System
 export const getSystemInfo = () => http.get('/system/info').then((r) => r.data);
 

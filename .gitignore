@@ -52,3 +52,4 @@ tests/
 yarn.lock
 frontend/node_modules/.cache/default-development/3.pack
 frontend/node_modules/.cache/default-development/1.pack
+frontend/node_modules/.cache/default-development/5.pack
