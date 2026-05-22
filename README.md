@@ -57,6 +57,40 @@ Open <http://localhost:3000>.
 
 The backend listens on `http://0.0.0.0:8001` by default.
 
+### Run as a background service (recommended)
+
+Once you've confirmed it works in dev mode, install it as **user-level systemd
+services** so both processes start automatically and run in the background
+without needing to keep terminals open:
+
+```bash
+./scripts/install-systemd.sh
+```
+
+This will:
+1. Build a production bundle of the frontend (`yarn build`)
+2. Install two user services: `udm-fork-backend.service` and `udm-fork-frontend.service`
+3. Enable and start them
+
+Manage them without sudo:
+
+```bash
+systemctl --user status udm-fork-backend udm-fork-frontend
+systemctl --user restart udm-fork-backend
+systemctl --user stop udm-fork-frontend
+journalctl --user -u udm-fork-backend -f       # tail logs
+```
+
+To keep them running even when logged out of your desktop:
+```bash
+sudo loginctl enable-linger $USER
+```
+
+To uninstall:
+```bash
+./scripts/uninstall-systemd.sh
+```
+
 ### Serial port permissions
 
 On most distros you must be in the `dialout` group to access `/dev/ttyUSB*`:

@@ -1,0 +1,15 @@
+[Unit]
+Description=UDM Fork — Sky Quality Meter frontend (static build served via 'npx serve')
+After=network-online.target udm-fork-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__ROOT__/frontend
+ExecStart=/usr/bin/env npx --yes serve -s build -l tcp://0.0.0.0:3000 --no-clipboard --no-port-switching
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
