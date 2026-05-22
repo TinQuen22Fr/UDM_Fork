@@ -15,6 +15,19 @@ if [ ! -f .env ] && [ -f .env.example ]; then
     cp .env.example .env
 fi
 
+# Make sure node_modules is in sync with package.json (auto-install missing deps
+# after a git pull that bumped package.json — e.g. html-to-image, jspdf, ...).
+NEED_INSTALL=0
+if [ ! -d node_modules ]; then
+    NEED_INSTALL=1
+elif [ package.json -nt node_modules ] || [ yarn.lock -nt node_modules ]; then
+    NEED_INSTALL=1
+fi
+if [ "$NEED_INSTALL" = "1" ]; then
+    echo ">>> Installing/refreshing frontend dependencies (yarn install)..."
+    yarn install --frozen-lockfile || yarn install
+fi
+
 echo ">>> Building production bundle..."
 yarn build
 echo ">>> Build complete: $ROOT/frontend/build"
