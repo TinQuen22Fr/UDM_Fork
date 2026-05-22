@@ -119,40 +119,60 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 log "Using node $(node --version)"
 
-# Resolve a working 'yarn' command
+# Resolve a working 'yarn' command.
+# WARNING: on Ubuntu/Debian the apt package 'yarn' is actually 'cmdtest'
+# (a test runner) — NOT the JavaScript Yarn we need. We detect that and
+# fall back to corepack.
 YARN_BIN=""
-if command -v yarn >/dev/null 2>&1; then
+yarn_is_real() {
+    # Real Yarn versions start with 1.x, 3.x or 4.x. cmdtest's yarn reports "0.32+git".
+    local v
+    v="$(yarn --version 2>/dev/null || true)"
+    [[ "$v" =~ ^[1-9][0-9]*\. ]]
+}
+
+if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
     YARN_BIN="yarn"
-elif command -v corepack >/dev/null 2>&1; then
+elif command -v yarn >/dev/null 2>&1; then
+    warn "An impostor 'yarn' is installed (version '$(yarn --version 2>/dev/null)') - this is the 'cmdtest' package from Ubuntu apt, not the real Yarn."
+    warn "Removing it and switching to corepack..."
+    sudo apt-get remove -y cmdtest yarn 2>/dev/null || true
+    hash -r
+fi
+
+if [ -z "$YARN_BIN" ] && command -v corepack >/dev/null 2>&1; then
     # Node >=16.10 ships corepack which can provide yarn without a global install
-    log "yarn not found - enabling it via corepack (bundled with Node)..."
-    if corepack enable 2>/dev/null || sudo corepack enable; then
-        corepack prepare yarn@stable --activate >/dev/null 2>&1 || true
-        if command -v yarn >/dev/null 2>&1; then
-            YARN_BIN="yarn"
-        fi
+    log "yarn not found (or impostor) - enabling it via corepack (bundled with Node)..."
+    sudo corepack enable 2>/dev/null || corepack enable 2>/dev/null || true
+    corepack prepare yarn@stable --activate >/dev/null 2>&1 || \
+        sudo corepack prepare yarn@stable --activate >/dev/null 2>&1 || true
+    hash -r
+    if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
+        YARN_BIN="yarn"
     fi
 fi
 
-# Last-resort: try npm install
+# Last-resort: npm install -g yarn
 if [ -z "$YARN_BIN" ] && command -v npm >/dev/null 2>&1; then
     warn "Trying 'sudo npm install -g yarn' as a fallback..."
-    if sudo npm install -g yarn >/dev/null 2>&1; then
+    sudo npm install -g yarn >/dev/null 2>&1 || true
+    hash -r
+    if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
         YARN_BIN="yarn"
     fi
 fi
 
 if [ -z "$YARN_BIN" ]; then
-    err "Could not find or install Yarn automatically."
-    err "Please install it manually with one of:"
+    err "Could not find or install the real Yarn automatically."
+    err "If you previously did 'sudo apt install yarn' that installed 'cmdtest', not Yarn."
+    err "Fix it with:"
+    err "  sudo apt-get remove -y cmdtest yarn"
     err "  sudo corepack enable && corepack prepare yarn@stable --activate"
-    err "  sudo npm install -g yarn"
-    err "  sudo apt install yarn   (after adding the official Yarn apt repo)"
-    err "Then re-run this installer (it resumes from this step)."
+    err "Then re-run this installer."
     exit 1
 fi
 
-log "Using yarn $(yarn --version 2>/dev/null || echo '(version unknown)')"
+log "Using yarn $(yarn --version)"
 yarn install
 log "Frontend dependencies installed."
 
