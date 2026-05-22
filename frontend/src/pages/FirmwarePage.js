@@ -91,19 +91,19 @@ export default function FirmwarePage() {
 
             <Alert className="mb-6 border-primary/40 bg-primary/5">
                 <InfoIcon className="size-4 text-primary" />
-                <AlertTitle>DIY SQM — putting the board in flash mode</AlertTitle>
+                <AlertTitle>DIY SQM — 3-position front switch (e.g. SQM Pro ESP8266)</AlertTitle>
                 <AlertDescription className="text-xs">
                     <p>
-                        Most DIY SQM PCBs have a 3-position toggle switch:
+                        Many ESP8266-based DIY SQM PCBs (including <a href="https://github.com/TinQuen22Fr/SQM-Pro-ESP8266" target="_blank" rel="noreferrer" className="text-primary hover:underline">SQM Pro</a>) use a 3-position center-off SPDT switch:
                     </p>
                     <ul className="mt-1 ml-5 list-disc space-y-0.5">
-                        <li><strong>Up</strong> &mdash; <em>USB</em> (normal operation, talk to UDM Fork)</li>
-                        <li><strong>Center</strong> &mdash; <em>neutral</em> (off)</li>
-                        <li><strong>Down</strong> &mdash; <em>OTA / Flash</em> (boot in serial bootloader for flashing)</li>
+                        <li><strong>Center</strong> — normal Wi-Fi mode (default, pushes data to dashboard)</li>
+                        <li><strong>D5 / GPIO14</strong> — Unihedron USB mode (answers <code>ix</code>, <code>rx</code>, <code>cx</code>… serial commands — connect via Find USB)</li>
+                        <li><strong>D3 / GPIO0</strong> — Flash boot mode (ESP8266 bootloader — only this position works for re-flashing)</li>
                     </ul>
                     <p className="mt-1">
-                        Set the switch to <strong>Down (Flash)</strong>, then press <strong>Start flash</strong> below.
-                        Set it back to <strong>Up (USB)</strong> after flashing.
+                        To flash: set the switch to the <strong>D3 (Flash boot)</strong> position, replug or press <strong>RST</strong>, then press <strong>Start flash</strong> below.
+                        Set it back to <strong>D5 (Unihedron USB)</strong> to talk to UDM Fork, or <strong>Center</strong> for normal Wi-Fi operation.
                     </p>
                 </AlertDescription>
             </Alert>

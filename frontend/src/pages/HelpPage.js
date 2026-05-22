@@ -70,6 +70,56 @@ export default function HelpPage() {
 
                 <Card className="xl:col-span-12 bg-card/60">
                     <CardHeader>
+                        <CardTitle>DIY SQM firmware — SQM Pro (ESP8266)</CardTitle>
+                        <CardDescription>
+                            Open-source firmware that pairs with this UDM Fork over the Unihedron-compatible serial protocol.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                        <p>
+                            If you're looking for a tested DIY firmware that works out of the box with UDM Fork
+                            (CH340 detection, <code>ix</code>/<code>rx</code>/<code>cx</code>/<code>w</code>/<code>g</code> commands,
+                            TSL2591 light sensor, BME280 weather, OLED, optional GPS NEO-6, OTA, deep-sleep, Wi-Fi push),
+                            have a look at <strong>SQM Pro</strong> by Quentin Dumont:
+                        </p>
+                        <ul className="space-y-1 font-mono text-xs">
+                            <li>
+                                <a className="text-primary hover:underline inline-flex items-center gap-1"
+                                   href="https://github.com/TinQuen22Fr/SQM-Pro-ESP8266"
+                                   target="_blank" rel="noreferrer">
+                                    github.com/TinQuen22Fr/SQM-Pro-ESP8266 (main) <ExternalLink className="size-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a className="text-primary hover:underline inline-flex items-center gap-1"
+                                   href="https://github.com/TinQuen22Fr/SQM-Pro-ESP8266/tree/wifimanager"
+                                   target="_blank" rel="noreferrer">
+                                    .../tree/wifimanager (beta with captive portal) <ExternalLink className="size-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a className="text-primary hover:underline inline-flex items-center gap-1"
+                                   href="https://github.com/TinQuen22Fr/SQM-Pro-ESP8266/releases"
+                                   target="_blank" rel="noreferrer">
+                                    .../releases (pre-built .bin files for the Firmware page) <ExternalLink className="size-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a className="text-primary hover:underline inline-flex items-center gap-1"
+                                   href="https://sqm.quentin-astro.fr/"
+                                   target="_blank" rel="noreferrer">
+                                    sqm.quentin-astro.fr (companion Wi-Fi dashboard) <ExternalLink className="size-3.5" />
+                                </a>
+                            </li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground">
+                            Hardware: ESP8266 NodeMCU + Adafruit TSL2591 + BME280 + SH1106/SSD1306 OLED + optional u-blox NEO-6M GPS. Baud rate 115200 (SQM-LU compatible since firmware v2.2.4).
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="xl:col-span-12 bg-card/60">
+                    <CardHeader>
                         <CardTitle>Linux troubleshooting</CardTitle>
                     </CardHeader>
                     <CardContent>
