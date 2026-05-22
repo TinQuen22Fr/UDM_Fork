@@ -7,55 +7,134 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 cd "$ROOT"
 
-echo ">>> UDM Fork installer"
-echo ">>> Root: $ROOT"
+C_RED=$'\e[31m'; C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'; C_RESET=$'\e[0m'
+log()  { echo "${C_GREEN}>>>${C_RESET} $*"; }
+warn() { echo "${C_YELLOW}!! ${C_RESET} $*"; }
+err()  { echo "${C_RED}xx ${C_RESET} $*" >&2; }
+
+log "UDM Fork installer"
+log "Root: $ROOT"
+
+# ---------- Detect Python ----------
+PYTHON_BIN=""
+for cand in python3.12 python3.11 python3.10 python3.9 python3; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        PYTHON_BIN="$cand"
+        break
+    fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+    err "No suitable python3 found on PATH."
+    err "Install it with: sudo apt-get install python3 python3-venv python3-pip"
+    exit 1
+fi
+log "Using $PYTHON_BIN ($($PYTHON_BIN --version 2>&1))"
+
+# Check venv module is available (Debian/Ubuntu separate it from Python)
+if ! "$PYTHON_BIN" -c "import venv" >/dev/null 2>&1; then
+    err "Python venv module is missing."
+    err "On Debian/Ubuntu run:"
+    PYVER=$("$PYTHON_BIN" -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    err "  sudo apt-get install -y python3-venv python${PYVER}-venv python3-pip"
+    err "On Fedora/RHEL:    sudo dnf install -y python3 python3-pip"
+    err "On Arch:           sudo pacman -S --needed python python-pip"
+    exit 1
+fi
 
 # ---------- Backend ----------
-echo ">>> Setting up Python backend ..."
+log "Setting up Python backend..."
 cd "$ROOT/backend"
-if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
+
+# (Re)create venv if missing or broken
+if [ ! -x ".venv/bin/python" ]; then
+    # Wipe a half-broken venv from previous attempts (e.g. when python3-venv was missing)
+    rm -rf .venv
+    if ! "$PYTHON_BIN" -m venv .venv; then
+        err "Failed to create the virtualenv. Make sure python3-venv is installed."
+        exit 1
+    fi
 fi
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-deactivate
-echo "    backend dependencies installed."
+
+# Use the venv directly without sourcing activate (more portable)
+VENV_PY="$ROOT/backend/.venv/bin/python"
+VENV_PIP="$ROOT/backend/.venv/bin/pip"
+
+if [ ! -x "$VENV_PY" ]; then
+    err "Virtualenv was created but $VENV_PY is missing. Aborting."
+    exit 1
+fi
+
+log "Upgrading pip..."
+"$VENV_PY" -m pip install --upgrade pip wheel setuptools
+
+log "Installing backend dependencies (this can take a minute)..."
+"$VENV_PIP" install -r requirements.txt
+
+log "Backend dependencies installed."
+
+# Initial .env if missing
+if [ ! -f "$ROOT/backend/.env" ] && [ -f "$ROOT/backend/.env.example" ]; then
+    cp "$ROOT/backend/.env.example" "$ROOT/backend/.env"
+    log "Created backend/.env from .env.example (SQM_MOCK=0 by default)."
+fi
 
 # ---------- Frontend ----------
-echo ">>> Setting up React frontend ..."
+log "Setting up React frontend..."
 cd "$ROOT/frontend"
 if command -v yarn >/dev/null 2>&1; then
     yarn install
 else
-    echo "!! 'yarn' is not installed. Install Yarn 1.x (npm install -g yarn) or use npm install at your own risk."
+    warn "'yarn' is not installed."
+    warn "Install it with one of:"
+    warn "  sudo npm install -g yarn"
+    warn "  curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/yarnkey.gpg && \\"
+    warn "    echo 'deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian/ stable main' | sudo tee /etc/apt/sources.list.d/yarn.list && \\"
+    warn "    sudo apt update && sudo apt install yarn"
+    warn "Then re-run this installer (it will resume)."
     exit 1
 fi
-echo "    frontend dependencies installed."
+log "Frontend dependencies installed."
 
-# ---------- udev rules (optional but recommended) ----------
+# Initial frontend .env if missing
+if [ ! -f "$ROOT/frontend/.env" ] && [ -f "$ROOT/frontend/.env.example" ]; then
+    cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
+    log "Created frontend/.env from .env.example (points to http://localhost:8001)."
+fi
+
+# ---------- udev rules ----------
 echo ""
-read -p ">>> Install udev rules for CH340 / FTDI / CP210x (requires sudo)? [y/N] " yn
+read -r -p ">>> Install udev rules for CH340 / FTDI / CP210x (requires sudo)? [y/N] " yn
 case "$yn" in
     [Yy]*)
         sudo cp "$ROOT/scripts/99-sqm.rules" /etc/udev/rules.d/
         sudo udevadm control --reload-rules
         sudo udevadm trigger
-        echo "    udev rules installed."
+        log "udev rules installed."
         ;;
     *)
-        echo "    skipped."
+        warn "Skipped udev rules. You can install them later with:"
+        warn "  sudo cp scripts/99-sqm.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger"
         ;;
 esac
 
 # ---------- dialout group ----------
 if ! id -nG "$USER" | grep -qw dialout; then
     echo ""
-    echo ">>> Your user '$USER' is not in the 'dialout' group."
-    echo "    Run:  sudo usermod -aG dialout $USER"
-    echo "    Then log out and back in."
+    warn "Your user '$USER' is NOT in the 'dialout' group."
+    warn "Without it you'll get 'Permission denied' when opening /dev/ttyUSB*."
+    warn "Fix it with:  sudo usermod -aG dialout $USER"
+    warn "Then log out and back in (or reboot)."
+fi
+
+# ---------- ModemManager warning ----------
+if systemctl is-active --quiet ModemManager 2>/dev/null; then
+    warn "ModemManager is running. It can grab /dev/ttyUSB* and break SQM/ESP8266 serial."
+    warn "If you have issues, disable it with: sudo systemctl disable --now ModemManager.service"
 fi
 
 echo ""
-echo ">>> Done! Start the backend with: ./scripts/run-backend.sh"
-echo "                 the frontend with: ./scripts/run-frontend.sh"
+log "All done!"
+echo ""
+echo "Start the backend:   ./scripts/run-backend.sh"
+echo "Start the frontend:  ./scripts/run-frontend.sh"
+echo "Open:                http://localhost:3000"
