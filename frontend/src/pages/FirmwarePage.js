@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UploadCloud, Loader2, FileBox, ZapOff } from 'lucide-react';
+import { UploadCloud, Loader2, FileBox, ZapOff, AlertTriangle, Info as InfoIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PageHeader } from '@/components/PageHeader';
 import { flashFirmware, getFirmwareStatus, listFirmware, uploadFirmware } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
@@ -71,9 +72,41 @@ export default function FirmwarePage() {
     return (
         <div>
             <PageHeader
-                title="Firmware"
-                description="Upload and flash firmware files. Requires esptool on the host for ESP8266 / ESP32 DIY SQM."
+                title="Firmware (DIY SQM only)"
+                description="Flash ESP8266 / ESP32 firmware on a DIY SQM via esptool. Official Unihedron SQM-LU/LE/DL devices use a different (PIC) firmware procedure that is not yet supported here."
             />
+
+            <Alert className="mb-6 border-[hsl(var(--telemetry-warn))]/50 bg-[hsl(var(--telemetry-warn))]/10">
+                <AlertTriangle className="size-4 text-[hsl(var(--telemetry-warn))]" />
+                <AlertTitle>Supported targets</AlertTitle>
+                <AlertDescription className="text-xs">
+                    <p>
+                        <strong>Supported</strong>: DIY SQM ESP8266 NodeMCU (CH340), ESP32 / ESP8266 boards (CP210x, PL2303). Uses <code>esptool</code> to write a <code>.bin</code> file at offset <code>0x0</code>.
+                    </p>
+                    <p className="mt-1">
+                        <strong>Not supported (yet)</strong>: official Unihedron SQM-LU / SQM-LE / SQM-LU-DL. Their PIC firmware uses the proprietary HEX-over-serial bootloader (<span className="font-mono">x4x5x6x</span>) which requires a different implementation — coming on the roadmap.
+                    </p>
+                </AlertDescription>
+            </Alert>
+
+            <Alert className="mb-6 border-primary/40 bg-primary/5">
+                <InfoIcon className="size-4 text-primary" />
+                <AlertTitle>DIY SQM — putting the board in flash mode</AlertTitle>
+                <AlertDescription className="text-xs">
+                    <p>
+                        Most DIY SQM PCBs have a 3-position toggle switch:
+                    </p>
+                    <ul className="mt-1 ml-5 list-disc space-y-0.5">
+                        <li><strong>Up</strong> &mdash; <em>USB</em> (normal operation, talk to UDM Fork)</li>
+                        <li><strong>Center</strong> &mdash; <em>neutral</em> (off)</li>
+                        <li><strong>Down</strong> &mdash; <em>OTA / Flash</em> (boot in serial bootloader for flashing)</li>
+                    </ul>
+                    <p className="mt-1">
+                        Set the switch to <strong>Down (Flash)</strong>, then press <strong>Start flash</strong> below.
+                        Set it back to <strong>Up (USB)</strong> after flashing.
+                    </p>
+                </AlertDescription>
+            </Alert>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <Card className="xl:col-span-6 bg-card/60">
