@@ -190,7 +190,7 @@ async def system_info():
         "log_directory": str(LOG_DIR_DEFAULT),
         "has_pyudev": _has("pyudev"),
         "has_pyserial": _has("serial"),
-        "has_esptool": shutil.which("esptool.py") is not None or shutil.which("esptool") is not None,
+        "has_esptool": _find_esptool()[0] is not None,
     }
 
 
@@ -440,9 +440,36 @@ async def firmware_status():
     return _flash_state
 
 
+def _find_esptool() -> tuple[list[str] | None, str]:
+    """Locate an esptool we can invoke.
+
+    Returns a tuple (argv_prefix, label):
+      - argv_prefix is a list that prefixes esptool args, e.g.
+        ['/path/to/esptool'] or [sys.executable, '-m', 'esptool'].
+      - label is a human-readable identifier of which one was picked.
+    """
+    # 1) Prefer the esptool installed in the same venv as the backend
+    venv_dir = os.path.dirname(sys.executable)
+    for name in ("esptool", "esptool.py"):
+        candidate = os.path.join(venv_dir, name)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return [candidate], candidate
+    # 2) Anywhere on PATH
+    for name in ("esptool", "esptool.py"):
+        found = shutil.which(name)
+        if found:
+            return [found], found
+    # 3) Last resort: invoke as a Python module from this same interpreter
+    try:
+        import esptool  # noqa: F401
+        return [sys.executable, "-m", "esptool"], f"{sys.executable} -m esptool"
+    except Exception:
+        return None, ""
+
+
 @api.post("/firmware/flash")
 async def firmware_flash(req: FlashRequest):
-    """Flash a firmware file using esptool.py (must be installed on the host)."""
+    """Flash a firmware file using esptool (auto-detected from venv or PATH)."""
     if _flash_state["running"]:
         raise HTTPException(status_code=409, detail="A flash job is already running")
     fw = FIRMWARE_DIR / Path(req.file_name).name
@@ -457,11 +484,11 @@ async def firmware_flash(req: FlashRequest):
     if client.connected and target_port == (client.params.port if client.params else None):
         await client.disconnect()
 
-    esptool = shutil.which("esptool.py") or shutil.which("esptool")
-    if not esptool:
+    esptool_argv, esptool_label = _find_esptool()
+    if not esptool_argv:
         raise HTTPException(
             status_code=400,
-            detail="esptool not installed on the host. Install with: pip install esptool",
+            detail="esptool not installed. Run: ./udm-fork install  (or 'pip install esptool' in backend/.venv)",
         )
 
     _flash_state.update(
@@ -479,7 +506,7 @@ async def firmware_flash(req: FlashRequest):
     async def _run():
         try:
             cmd = [
-                esptool,
+                *esptool_argv,
                 "--chip",
                 "auto",
                 "--port",
@@ -490,7 +517,7 @@ async def firmware_flash(req: FlashRequest):
                 "0x0",
                 str(fw),
             ]
-            _flash_state["stage"] = "flashing"
+            _flash_state["stage"] = f"flashing (via {esptool_label})"
             proc = await asyncio.create_subprocess_exec(
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
             )
