@@ -140,34 +140,36 @@ elif command -v yarn >/dev/null 2>&1; then
     hash -r
 fi
 
-if [ -z "$YARN_BIN" ] && command -v corepack >/dev/null 2>&1; then
-    # Node >=16.10 ships corepack which can provide yarn without a global install
-    log "yarn not found (or impostor) - enabling it via corepack (bundled with Node)..."
-    sudo corepack enable 2>/dev/null || corepack enable 2>/dev/null || true
-    corepack prepare yarn@stable --activate >/dev/null 2>&1 || \
-        sudo corepack prepare yarn@stable --activate >/dev/null 2>&1 || true
-    hash -r
-    if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
-        YARN_BIN="yarn"
+if [ -z "$YARN_BIN" ]; then
+    # Try corepack first (Node >=16.10 ships it - but Debian/Ubuntu strip it out)
+    if command -v corepack >/dev/null 2>&1; then
+        log "Enabling Yarn via corepack..."
+        sudo corepack enable 2>/dev/null || corepack enable 2>/dev/null || true
+        corepack prepare yarn@stable --activate >/dev/null 2>&1 || \
+            sudo corepack prepare yarn@stable --activate >/dev/null 2>&1 || true
+        hash -r
+        if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
+            YARN_BIN="yarn"
+        fi
     fi
 fi
 
-# Last-resort: npm install -g yarn
+# Fallback: npm install -g yarn  (Ubuntu strips corepack from the nodejs package)
 if [ -z "$YARN_BIN" ] && command -v npm >/dev/null 2>&1; then
-    warn "Trying 'sudo npm install -g yarn' as a fallback..."
-    sudo npm install -g yarn >/dev/null 2>&1 || true
-    hash -r
-    if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
-        YARN_BIN="yarn"
+    log "Installing Yarn via 'sudo npm install -g yarn'..."
+    if sudo npm install -g yarn; then
+        hash -r
+        if command -v yarn >/dev/null 2>&1 && yarn_is_real; then
+            YARN_BIN="yarn"
+        fi
     fi
 fi
 
 if [ -z "$YARN_BIN" ]; then
-    err "Could not find or install the real Yarn automatically."
-    err "If you previously did 'sudo apt install yarn' that installed 'cmdtest', not Yarn."
-    err "Fix it with:"
-    err "  sudo apt-get remove -y cmdtest yarn"
-    err "  sudo corepack enable && corepack prepare yarn@stable --activate"
+    err "Could not install the real Yarn automatically."
+    err "Try manually:"
+    err "  sudo apt-get remove -y cmdtest yarn   # remove the impostor first"
+    err "  sudo npm install -g yarn              # install the real Yarn"
     err "Then re-run this installer."
     exit 1
 fi
