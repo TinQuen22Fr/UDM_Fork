@@ -398,6 +398,63 @@ async def device_sqm_pro_config():
     return c.to_dict()
 
 
+@api.get("/device/sqm_pro/identity")
+async def device_sqm_pro_identity():
+    """Try to extract a SensorID (and optional key) usable by the
+    sqm.quentin-astro.fr dashboard.
+
+    Strategy (best-effort, tolerant of firmware variants):
+      - Read `ix`: official 4-field identity (protocol, model, feature, serial)
+      - Build a SensorID from the SQM Pro convention: 'SQMPRO-<serial>'
+        (the firmware writes SERIAL_NUMBER = '20200604' for canonical SQM Pro).
+      - If a future firmware revision exposes a dedicated 'sx' / 'idx' command,
+        we'll surface its raw payload via `raw_identity` so the UI can show it.
+    """
+    _require_connected()
+    sensor_id = None
+    sensor_key = None
+    raw_identity = None
+    mac_address = None
+    serial_number = None
+
+    try:
+        info = await client.get_info()
+        info_d = info.to_dict() if hasattr(info, "to_dict") else dict(info or {})
+        serial_number = info_d.get("serial_number")
+        mac_address = info_d.get("mac_address")
+        raw_identity = info_d.get("raw")
+        if serial_number:
+            # Strip leading zeros / whitespace
+            clean = str(serial_number).strip().lstrip("0") or str(serial_number).strip()
+            sensor_id = f"SQMPRO-{clean}"
+    except Exception as e:
+        logger.warning("identity fetch failed: %s", e)
+
+    # Optional: try a dedicated 'sx' (sensor id) command. Many DIY firmwares
+    # ignore unknown commands but some custom builds may respond with the
+    # exact dashboard ID. We accept either 'SENSOR:<id>' or 'sensor_id=<id>'.
+    try:
+        resp = await client.send_raw(b"sx", read_timeout=1.0)
+        if resp:
+            import re as _re
+            m = _re.search(r"(?:SENSOR[:=]|sensor_id[:=])\s*([A-Za-z0-9\-_]+)", resp)
+            if m:
+                sensor_id = m.group(1)
+            m2 = _re.search(r"(?:KEY[:=]|sensor_key[:=])\s*([A-Za-z0-9\-_]+)", resp)
+            if m2:
+                sensor_key = m2.group(1)
+    except Exception:
+        pass
+
+    return {
+        "sensor_id": sensor_id,
+        "sensor_key": sensor_key,
+        "serial_number": serial_number,
+        "mac_address": mac_address,
+        "raw_identity": raw_identity,
+    }
+
+
 @api.post("/device/sqm_pro/calibration")
 async def device_sqm_pro_calibration(req: SQMProCalRequest):
     """Write SQM Pro calibration registers."""
@@ -575,6 +632,84 @@ async def logging_status():
 @api.get("/logging/sessions")
 async def logging_sessions():
     return {"sessions": logging_service.list_sessions()}
+
+
+@api.get("/logging/history")
+async def logging_history(
+    date: Optional[str] = None,
+    file: Optional[str] = None,
+    limit: int = 5000,
+):
+    """Read a previously logged CSV/DAT file and return parsed samples.
+
+    Either pass `date` (YYYY-MM-DD, matches files containing the date in their
+    name) or an explicit `file` name. Returns samples shaped like the
+    in-memory WS history: {ts, mpsas, temperature, frequency, counts}.
+    """
+    target: Optional[Path] = None
+    if file:
+        safe = Path(file).name
+        candidate = LOG_DIR_DEFAULT / safe
+        if candidate.exists():
+            target = candidate
+    elif date:
+        # Find a file whose name contains the date
+        for f in sorted(LOG_DIR_DEFAULT.glob("*")):
+            if f.is_file() and date in f.name and f.suffix.lower() in (".csv", ".dat"):
+                target = f
+                break
+
+    if not target:
+        return {"samples": [], "file": None, "count": 0}
+
+    samples = []
+    try:
+        with open(target, "r", encoding="utf-8", errors="replace") as fh:
+            for raw_line in fh:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.lower().startswith(("utc", "yyyy", "timestamp", "time,", "time;", "date")):
+                    continue  # skip headers
+                # Try semicolon (DAT) or comma (CSV)
+                parts = line.split(";") if ";" in line else line.split(",")
+                if len(parts) < 2:
+                    continue
+                ts = parts[0].strip()
+                # Parse the floats (rest of columns vary by format)
+                nums = []
+                for p in parts[1:]:
+                    pv = p.strip()
+                    try:
+                        nums.append(float(pv))
+                    except (ValueError, TypeError):
+                        nums.append(None)
+                sample = {"ts": ts}
+                # Common layouts:
+                #   CSV: ts, mpsas, temperature_c, frequency_hz, counts
+                #   DAT: utc; local; temperature; voltage; mpsas; ...
+                if "dat" in target.suffix.lower():
+                    sample["temperature"] = nums[1] if len(nums) > 1 else None
+                    sample["mpsas"] = nums[3] if len(nums) > 3 else (nums[2] if len(nums) > 2 else None)
+                    sample["frequency"] = nums[5] if len(nums) > 5 else None
+                    sample["counts"] = nums[6] if len(nums) > 6 else None
+                else:
+                    sample["mpsas"] = nums[0] if len(nums) > 0 else None
+                    sample["temperature"] = nums[1] if len(nums) > 1 else None
+                    sample["frequency"] = nums[2] if len(nums) > 2 else None
+                    sample["counts"] = nums[3] if len(nums) > 3 else None
+                samples.append(sample)
+                if len(samples) >= limit:
+                    break
+    except Exception as e:
+        logger.exception("history read failed")
+        raise HTTPException(status_code=500, detail=f"Failed to read history: {e}")
+
+    return {
+        "file": target.name,
+        "count": len(samples),
+        "samples": samples,
+    }
 
 
 @api.get("/logging/download/{name}")

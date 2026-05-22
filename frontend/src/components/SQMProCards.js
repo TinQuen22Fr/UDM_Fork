@@ -1,16 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Thermometer, Droplets, Gauge, Sparkles, Eye, RefreshCw, MapPin, Satellite, Clock, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getWeather, getGps } from '@/lib/api';
+import { useI18n } from '@/context/I18nContext';
 
-/**
- * Cards that only show data returned by the SQM Pro firmware extensions
- * (w command and g0 command). They are auto-hidden when the device doesn't
- * support them (e.g. a stock Unihedron SQM-LU).
- */
 export function WeatherCard({ connected }) {
+    const { t } = useI18n();
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
     const [unsupported, setUnsupported] = useState(false);
@@ -55,11 +51,9 @@ export function WeatherCard({ connected }) {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <Sparkles className="size-4 text-primary" /> Weather (SQM Pro)
+                        <Sparkles className="size-4 text-primary" /> {t('sqmpro.weather')}
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                        Extended <span className="font-mono">w</span> command — BME280 + TSL2591 channels.
-                    </CardDescription>
+                    <CardDescription className="text-xs">{t('sqmpro.weatherDesc')}</CardDescription>
                 </div>
                 <Button size="icon" variant="ghost" onClick={refresh} disabled={loading} data-testid="weather-refresh-button">
                     <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -69,14 +63,14 @@ export function WeatherCard({ connected }) {
                 {error && <p className="text-xs text-[hsl(var(--telemetry-bad))]">{error}</p>}
                 {data && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Stat label="Temperature" value={data.temperature_c?.toFixed(1)} unit="°C" icon={Thermometer} testid="weather-temp" />
-                        <Stat label="Humidity" value={data.humidity_pct?.toFixed(0)} unit="%" icon={Droplets} testid="weather-humidity" />
-                        <Stat label="Pressure" value={data.pressure_hpa?.toFixed(0)} unit="hPa" icon={Gauge} testid="weather-pressure" />
-                        <Stat label="Δmpsas" value={data.dmpsas?.toFixed(2)} unit="error" icon={Sparkles} testid="weather-dmpsas" />
-                        <Stat label="IR channel" value={data.ir} unit="raw" icon={Eye} testid="weather-ir" />
+                        <Stat label={t('sqmpro.temperatureC')} value={data.temperature_c?.toFixed(1)} unit="°C" icon={Thermometer} testid="weather-temp" />
+                        <Stat label={t('sqmpro.humidity')} value={data.humidity_pct?.toFixed(0)} unit="%" icon={Droplets} testid="weather-humidity" />
+                        <Stat label={t('sqmpro.pressure')} value={data.pressure_hpa?.toFixed(0)} unit="hPa" icon={Gauge} testid="weather-pressure" />
+                        <Stat label="Δmpsas" value={data.dmpsas?.toFixed(2)} unit="" icon={Sparkles} testid="weather-dmpsas" />
+                        <Stat label="IR" value={data.ir} unit="raw" icon={Eye} testid="weather-ir" />
                         <Stat label="Visible" value={data.vis} unit="raw" icon={Eye} testid="weather-vis" />
-                        <Stat label="Counts" value={data.counts} unit="period" icon={Gauge} testid="weather-counts" />
-                        <Stat label="OLED state" value={data.oled_state} unit="" icon={Eye} testid="weather-oled" />
+                        <Stat label="Counts" value={data.counts} unit="" icon={Gauge} testid="weather-counts" />
+                        <Stat label="OLED" value={data.oled_state} unit="" icon={Eye} testid="weather-oled" />
                     </div>
                 )}
             </CardContent>
@@ -85,6 +79,7 @@ export function WeatherCard({ connected }) {
 }
 
 export function GpsCard({ connected }) {
+    const { t } = useI18n();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [errorOrUnsupported, setEU] = useState(null);
@@ -94,7 +89,6 @@ export function GpsCard({ connected }) {
         setLoading(true);
         try {
             const g = await getGps();
-            // hide if no useful data
             if (!g.fix_quality && (!g.latitude || !g.longitude)) {
                 setEU('no-fix');
                 setData(g);
@@ -130,11 +124,9 @@ export function GpsCard({ connected }) {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <MapPin className="size-4 text-primary" /> GPS
+                        <MapPin className="size-4 text-primary" /> {t('sqmpro.gps')}
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                        Extended <span className="font-mono">g0</span> command — u-blox NEO-6 position.
-                    </CardDescription>
+                    <CardDescription className="text-xs">{t('sqmpro.gpsDesc')}</CardDescription>
                 </div>
                 <Button size="icon" variant="ghost" onClick={refresh} disabled={loading} data-testid="gps-refresh-button">
                     <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -143,17 +135,17 @@ export function GpsCard({ connected }) {
             <CardContent>
                 {!hasFix && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Satellite className="size-3.5" /> Waiting for GPS fix...
-                        {data?.satellites != null && <span className="font-mono">({data.satellites} sats)</span>}
+                        <Satellite className="size-3.5" /> {t('sqmpro.noGps')}
+                        {data?.satellites != null && <span className="font-mono">({data.satellites} {t('sqmpro.satellites').toLowerCase()})</span>}
                     </div>
                 )}
                 {hasFix && (
                     <div className="space-y-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <Stat label="Latitude" value={data.latitude.toFixed(5)} unit="°" icon={MapPin} testid="gps-lat" />
-                            <Stat label="Longitude" value={data.longitude.toFixed(5)} unit="°" icon={MapPin} testid="gps-lng" />
-                            <Stat label="Satellites" value={data.satellites} unit="" icon={Satellite} testid="gps-sats" />
-                            <Stat label="UTC time" value={data.utc_time} unit="" icon={Clock} testid="gps-utc" />
+                            <Stat label={t('sqmpro.latitude')} value={data.latitude.toFixed(5)} unit="°" icon={MapPin} testid="gps-lat" />
+                            <Stat label={t('sqmpro.longitude')} value={data.longitude.toFixed(5)} unit="°" icon={MapPin} testid="gps-lng" />
+                            <Stat label={t('sqmpro.satellites')} value={data.satellites} unit="" icon={Satellite} testid="gps-sats" />
+                            <Stat label={t('sqmpro.time')} value={data.utc_time} unit="" icon={Clock} testid="gps-utc" />
                         </div>
                         <a
                             href={`https://www.openstreetmap.org/?mlat=${data.latitude}&mlon=${data.longitude}#map=14/${data.latitude}/${data.longitude}`}
@@ -162,7 +154,7 @@ export function GpsCard({ connected }) {
                             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                             data-testid="gps-osm-link"
                         >
-                            View on OpenStreetMap <ExternalLink className="size-3.5" />
+                            {t('sqmpro.viewOnMap')} <ExternalLink className="size-3.5" />
                         </a>
                     </div>
                 )}

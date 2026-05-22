@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Settings2, ShieldCheck, ShieldOff, RefreshCw, Moon, Sun, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { SQMProCalibrationCard } from '@/components/SQMProCalibrationCard';
 import {
     calibrateDevice,
     getCalibrationInfo,
@@ -15,8 +16,10 @@ import {
     setLoggingInterval,
 } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 
 export default function ConfigurationPage() {
+    const { t } = useI18n();
     const { status } = useDevice();
     const [intervalSec, setIntervalSec] = useState(60);
     const [working, setWorking] = useState(false);
@@ -66,37 +69,37 @@ export default function ConfigurationPage() {
     }, [status.connected]);
 
     const onApplyInterval = async () => {
-        if (!status.connected) return toast.error('Connect first');
+        if (!status.connected) return toast.error(t('configuration.toastConnect'));
         setWorking(true);
         try {
             const r = await setLoggingInterval(Number(intervalSec));
-            toast.success('Interval applied on device');
+            toast.success(t('configuration.toastIntervalApplied'));
             setIntervalResp(r.response || '');
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Failed');
+            toast.error(e?.response?.data?.detail || t('configuration.toastFailed'));
         } finally {
             setWorking(false);
         }
     };
 
     const onCalibrate = async (action) => {
-        if (!status.connected) return toast.error('Connect first');
-        if (!window.confirm(`Send calibration command '${action}' to the device?`)) return;
+        if (!status.connected) return toast.error(t('configuration.toastConnect'));
+        if (!window.confirm(t('configuration.confirmCalCmd', { action }))) return;
         setWorking(true);
         try {
             await calibrateDevice(action);
-            toast.success(`Sent: ${action}`);
+            toast.success(t('configuration.toastSent', { action }));
             refreshCal();
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Failed');
+            toast.error(e?.response?.data?.detail || t('configuration.toastFailed'));
         } finally {
             setWorking(false);
         }
     };
 
     const onWriteCalValues = async () => {
-        if (!status.connected) return toast.error('Connect first');
-        if (!window.confirm('Write these calibration values to the device permanent memory?')) return;
+        if (!status.connected) return toast.error(t('configuration.toastConnect'));
+        if (!window.confirm(t('configuration.confirmWrite'))) return;
         setWorking(true);
         try {
             const body = {};
@@ -105,14 +108,14 @@ export default function ConfigurationPage() {
             if (darkPeriod !== '') body.dark_period_s = Number(darkPeriod);
             if (darkTemp !== '') body.dark_temperature_c = Number(darkTemp);
             if (!Object.keys(body).length) {
-                toast.message('No values to write');
+                toast.message(t('configuration.noValues'));
                 return;
             }
             const r = await setCalibrationValues(body);
-            toast.success(`Wrote ${r.results.length} value(s) to device`);
+            toast.success(t('configuration.toastWrote', { n: r.results.length }));
             refreshCal();
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Failed');
+            toast.error(e?.response?.data?.detail || t('configuration.toastFailed'));
         } finally {
             setWorking(false);
         }
@@ -120,24 +123,19 @@ export default function ConfigurationPage() {
 
     return (
         <div>
-            <PageHeader
-                title="Configuration & Calibration"
-                description="Adjust the device's internal logging interval and light/dark calibration registers (zcal5/6/7/8, zcalAx/Bx/Dx)."
-            />
+            <PageHeader title={t('configuration.title')} description={t('configuration.description')} />
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Settings2 className="size-4 text-primary" /> Logging interval
+                            <Settings2 className="size-4 text-primary" /> {t('configuration.loggingInterval')}
                         </CardTitle>
-                        <CardDescription>
-                            Persisted on the device (Unihedron <span className="font-mono">Lxxxxxxxxx</span> command).
-                        </CardDescription>
+                        <CardDescription>{t('configuration.loggingIntervalDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs text-muted-foreground">Interval (seconds, 0–99999)</label>
+                            <label className="text-xs text-muted-foreground">{t('configuration.intervalSec')}</label>
                             <Input
                                 type="number"
                                 min={0}
@@ -149,11 +147,11 @@ export default function ConfigurationPage() {
                         </div>
                         <Button onClick={onApplyInterval} disabled={working || !status.connected} data-testid="apply-interval-button">
                             {working ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
-                            Apply on device
+                            {t('configuration.applyOnDevice')}
                         </Button>
                         {intervalResp && (
                             <div>
-                                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Device response</div>
+                                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{t('configuration.deviceResponse')}</div>
                                 <pre className="mt-1 font-mono text-xs bg-secondary/50 rounded p-2 border border-border whitespace-pre-wrap break-words">
                                     {intervalResp}
                                 </pre>
@@ -165,15 +163,13 @@ export default function ConfigurationPage() {
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Clock className="size-4 text-primary" /> Datalogger (RTC) status
+                            <Clock className="size-4 text-primary" /> {t('configuration.rtcTitle')}
                         </CardTitle>
-                        <CardDescription>
-                            Reads on-device clock (<span className="font-mono">Lcx</span>) and trigger settings (<span className="font-mono">Lmx</span>, <span className="font-mono">LIx</span>). For SQM-LU-DL models.
-                        </CardDescription>
+                        <CardDescription>{t('configuration.rtcDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <Button onClick={readClock} variant="secondary" size="sm" disabled={!status.connected} data-testid="read-clock-button">
-                            <RefreshCw className="size-3.5 mr-2" /> Read clock
+                            <RefreshCw className="size-3.5 mr-2" /> {t('configuration.readClock')}
                         </Button>
                         {clockResp && (
                             <pre className="font-mono text-xs bg-secondary/50 rounded p-2 border border-border whitespace-pre-wrap break-words">
@@ -190,24 +186,22 @@ export default function ConfigurationPage() {
 
                 <Card className="xl:col-span-7 bg-card/60">
                     <CardHeader>
-                        <CardTitle>Calibration</CardTitle>
-                        <CardDescription>
-                            Arm light/dark calibration requires the official reference source (use Disarm to cancel). Direct setters write to the device's permanent memory.
-                        </CardDescription>
+                        <CardTitle>{t('configuration.calibrationTitle')}</CardTitle>
+                        <CardDescription>{t('configuration.calibrationDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex gap-2 flex-wrap">
                             <Button onClick={refreshCal} variant="secondary" size="sm" data-testid="refresh-cal-button">
-                                <RefreshCw className="size-3.5 mr-2" /> Read calibration
+                                <RefreshCw className="size-3.5 mr-2" /> {t('configuration.readCal')}
                             </Button>
                             <Button onClick={() => onCalibrate('arm_light')} disabled={working || !status.connected} data-testid="arm-cal-button">
-                                <Sun className="size-4 mr-2" /> Arm Light Cal (zcalAx)
+                                <Sun className="size-4 mr-2" /> {t('configuration.armLight')}
                             </Button>
                             <Button onClick={() => onCalibrate('arm_dark')} disabled={working || !status.connected} data-testid="arm-dark-cal-button">
-                                <Moon className="size-4 mr-2" /> Arm Dark Cal (zcalBx)
+                                <Moon className="size-4 mr-2" /> {t('configuration.armDark')}
                             </Button>
                             <Button onClick={() => onCalibrate('disarm')} variant="destructive" disabled={working || !status.connected} data-testid="disarm-cal-button">
-                                <ShieldOff className="size-4 mr-2" /> Disarm (zcalDx)
+                                <ShieldOff className="size-4 mr-2" /> {t('configuration.disarm')}
                             </Button>
                         </div>
                         {cal && (
@@ -221,20 +215,18 @@ export default function ConfigurationPage() {
                 <Card className="xl:col-span-5 bg-card/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <ShieldCheck className="size-4 text-primary" /> Manual calibration write
+                            <ShieldCheck className="size-4 text-primary" /> {t('configuration.manualCal')}
                         </CardTitle>
-                        <CardDescription>
-                            Write specific values to <span className="font-mono">zcal5/6/7/8</span>. Leave a field empty to skip.
-                        </CardDescription>
+                        <CardDescription>{t('configuration.manualCalDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <Field label="Light cal offset (mpsas) - zcal5" value={lightOffset} onChange={setLightOffset} testid="cal-light-offset" />
-                        <Field label="Light cal temperature (°C) - zcal6" value={lightTemp} onChange={setLightTemp} testid="cal-light-temp-set" />
-                        <Field label="Dark cal period (s) - zcal7" value={darkPeriod} onChange={setDarkPeriod} testid="cal-dark-period" />
-                        <Field label="Dark cal temperature (°C) - zcal8" value={darkTemp} onChange={setDarkTemp} testid="cal-dark-temp-set" />
+                        <NumField label={t('configuration.lightOffset')} value={lightOffset} onChange={setLightOffset} testid="cal-light-offset" />
+                        <NumField label={t('configuration.lightTemp')} value={lightTemp} onChange={setLightTemp} testid="cal-light-temp-set" />
+                        <NumField label={t('configuration.darkPeriod')} value={darkPeriod} onChange={setDarkPeriod} testid="cal-dark-period" />
+                        <NumField label={t('configuration.darkTemp')} value={darkTemp} onChange={setDarkTemp} testid="cal-dark-temp-set" />
                         <Button onClick={onWriteCalValues} variant="destructive" disabled={working || !status.connected} data-testid="write-cal-button">
                             {working ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
-                            Write to device
+                            {t('configuration.writeToDevice')}
                         </Button>
                     </CardContent>
                 </Card>
@@ -247,7 +239,7 @@ export default function ConfigurationPage() {
     );
 }
 
-function Field({ label, value, onChange, testid }) {
+function NumField({ label, value, onChange, testid }) {
     return (
         <div className="space-y-1">
             <label className="text-[11px] text-muted-foreground">{label}</label>

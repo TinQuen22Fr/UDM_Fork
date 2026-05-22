@@ -10,19 +10,20 @@ import { Cable, Loader2, RefreshCw, Plug, PlugZap, Filter, ChevronRight } from '
 import { PageHeader } from '@/components/PageHeader';
 import { connectDevice, disconnectDevice, fetchPorts } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils';
 
 const BAUDRATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800];
 
-const KIND_LABEL = {
-    'sqm-ftdi': { label: 'FTDI / Unihedron SQM', tone: 'good' },
-    'sqm-diy-ch340': { label: 'CH340 / DIY SQM ESP8266', tone: 'good' },
-    'sqm-diy-cp210x': { label: 'CP210x / DIY SQM ESP', tone: 'good' },
-    'sqm-diy-pl2303': { label: 'PL2303 / DIY', tone: 'warn' },
-    unknown: { label: 'Other / Unknown', tone: 'idle' },
+const KIND_KEYS = {
+    'sqm-ftdi': 'sqm-ftdi',
+    'sqm-diy-ch340': 'sqm-diy-ch340',
+    'sqm-diy-cp210x': 'sqm-diy-cp210x',
+    'sqm-diy-pl2303': 'sqm-diy-pl2303',
 };
 
 export default function ConnectionPage() {
+    const { t } = useI18n();
     const { status, refreshStatus, setInfo } = useDevice();
     const [ports, setPorts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,6 +32,8 @@ export default function ConnectionPage() {
     const [selectedPort, setSelectedPort] = useState('');
     const [baudrate, setBaudrate] = useState(115200);
     const [mockMode, setMockMode] = useState(false);
+
+    const kindLabel = (kind) => t(`connection.kind.${KIND_KEYS[kind] || 'unknown'}`);
 
     const refresh = async () => {
         setLoading(true);
@@ -43,7 +46,7 @@ export default function ConnectionPage() {
                 setSelectedPort((reco || data.ports[0]).device);
             }
         } catch (e) {
-            toast.error('Could not list serial ports');
+            toast.error(t('connection.toastListFailed'));
         } finally {
             setLoading(false);
         }
@@ -55,15 +58,15 @@ export default function ConnectionPage() {
     }, [onlySqm]);
 
     const handleConnect = async () => {
-        if (!selectedPort) return toast.error('Select a port first');
+        if (!selectedPort) return toast.error(t('connection.toastSelectPort'));
         setConnecting(true);
         try {
             const res = await connectDevice({ port: selectedPort, baudrate });
-            toast.success(`Connected to ${selectedPort}`);
+            toast.success(t('connection.toastConnected', { port: selectedPort }));
             if (res.info) setInfo(res.info);
             await refreshStatus();
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Connection failed');
+            toast.error(e?.response?.data?.detail || t('connection.toastConnectionFailed'));
         } finally {
             setConnecting(false);
         }
@@ -72,19 +75,19 @@ export default function ConnectionPage() {
     const handleDisconnect = async () => {
         try {
             await disconnectDevice();
-            toast.success('Disconnected');
+            toast.success(t('connection.toastDisconnected'));
             setInfo(null);
             await refreshStatus();
         } catch (e) {
-            toast.error('Disconnect failed');
+            toast.error(t('connection.toastDisconnectFailed'));
         }
     };
 
     return (
         <div>
             <PageHeader
-                title="Find USB & Connect"
-                description="Detect FTDI (Unihedron SQM-LU/LE) and CH340 (DIY SQM ESP8266 NodeMCU) adapters connected to this machine."
+                title={t('connection.title')}
+                description={t('connection.description')}
                 actions={
                     <Button onClick={refresh} variant="secondary" data-testid="device-scan-button">
                         {loading ? (
@@ -92,7 +95,7 @@ export default function ConnectionPage() {
                         ) : (
                             <RefreshCw className="size-4 mr-2" />
                         )}
-                        Rescan
+                        {t('common.rescan')}
                     </Button>
                 }
             />
@@ -104,17 +107,15 @@ export default function ConnectionPage() {
                         <div>
                             <CardTitle className="flex items-center gap-2">
                                 <Cable className="size-4 text-primary" />
-                                Detected Serial Ports
+                                {t('connection.detectedPorts')}
                             </CardTitle>
                             <CardDescription>
-                                {mockMode
-                                    ? 'Demo mode: synthetic FTDI + CH340 devices for UI preview.'
-                                    : 'Live enumeration from this host (pyserial + udev).'}
+                                {mockMode ? t('connection.demoDesc') : t('connection.liveDesc')}
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                             <Filter className="size-3.5 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">Only SQM</span>
+                            <span className="text-xs text-muted-foreground">{t('connection.onlySqm')}</span>
                             <Switch
                                 checked={onlySqm}
                                 onCheckedChange={setOnlySqm}
@@ -132,16 +133,12 @@ export default function ConnectionPage() {
                         )}
                         {!loading && ports.length === 0 && (
                             <div className="py-8 text-center text-sm text-muted-foreground">
-                                <p>No serial ports detected.</p>
-                                <p className="mt-2">
-                                    On Linux make sure your user is in the <code>dialout</code> group and that the
-                                    correct udev rules are installed for CH340/FTDI.
-                                </p>
+                                <p>{t('connection.noPorts')}</p>
+                                <p className="mt-2">{t('connection.noPortsHelp')}</p>
                             </div>
                         )}
                         {!loading &&
                             ports.map((p) => {
-                                const meta = KIND_LABEL[p.kind] || KIND_LABEL.unknown;
                                 const active = selectedPort === p.device;
                                 return (
                                     <button
@@ -167,15 +164,15 @@ export default function ConnectionPage() {
                                                         variant="outline"
                                                         className="text-[10px] uppercase tracking-wider bg-[hsl(var(--telemetry-good))]/15 text-[hsl(var(--telemetry-good))] border-[hsl(var(--telemetry-good))]/30"
                                                     >
-                                                        Recommended
+                                                        {t('connection.recommended')}
                                                     </Badge>
                                                 )}
                                                 <Badge variant="outline" className="text-[10px]">
-                                                    {meta.label}
+                                                    {kindLabel(p.kind)}
                                                 </Badge>
                                             </div>
                                             <div className="mt-1 text-[11px] text-muted-foreground font-mono truncate">
-                                                {p.vid_pid ? `VID:PID ${p.vid_pid}` : 'No VID:PID'}
+                                                {p.vid_pid ? `VID:PID ${p.vid_pid}` : t('connection.noVidPid')}
                                                 {p.serial_number ? ` • SN ${p.serial_number}` : ''}
                                                 {p.udev_driver ? ` • driver ${p.udev_driver}` : ''}
                                             </div>
@@ -195,23 +192,23 @@ export default function ConnectionPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <PlugZap className="size-4 text-primary" />
-                            Connection Settings
+                            {t('connection.connectionSettings')}
                         </CardTitle>
-                        <CardDescription>Default to 115200 8N1 per Unihedron protocol.</CardDescription>
+                        <CardDescription>{t('connection.defaultProto')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Port</label>
+                            <label className="text-xs font-medium text-muted-foreground">{t('common.port')}</label>
                             <Select value={selectedPort} onValueChange={setSelectedPort}>
                                 <SelectTrigger data-testid="port-select">
-                                    <SelectValue placeholder="Select a port" />
+                                    <SelectValue placeholder={t('connection.selectPort')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {ports.map((p) => (
                                         <SelectItem key={p.device} value={p.device}>
                                             <span className="font-mono">{p.device}</span>
                                             <span className="text-muted-foreground ml-2 text-xs">
-                                                {(KIND_LABEL[p.kind] || KIND_LABEL.unknown).label}
+                                                {kindLabel(p.kind)}
                                             </span>
                                         </SelectItem>
                                     ))}
@@ -219,7 +216,7 @@ export default function ConnectionPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Baud rate</label>
+                            <label className="text-xs font-medium text-muted-foreground">{t('common.baudrate')}</label>
                             <Select
                                 value={String(baudrate)}
                                 onValueChange={(v) => setBaudrate(Number(v))}
@@ -235,9 +232,7 @@ export default function ConnectionPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <p className="text-[11px] text-muted-foreground">
-                                Use 115200 for Unihedron + most DIY ESP8266 SQM firmwares.
-                            </p>
+                            <p className="text-[11px] text-muted-foreground">{t('connection.baudHelp')}</p>
                         </div>
 
                         <div className="pt-2">
@@ -248,7 +243,7 @@ export default function ConnectionPage() {
                                     className="w-full"
                                     data-testid="connect-toggle-button"
                                 >
-                                    <Plug className="size-4 mr-2" /> Disconnect from {status.port}
+                                    <Plug className="size-4 mr-2" /> {t('connection.disconnectFrom')} {status.port}
                                 </Button>
                             ) : (
                                 <Button
@@ -262,7 +257,7 @@ export default function ConnectionPage() {
                                     ) : (
                                         <PlugZap className="size-4 mr-2" />
                                     )}
-                                    Connect
+                                    {t('common.connect')}
                                 </Button>
                             )}
                         </div>

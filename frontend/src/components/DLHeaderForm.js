@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, FileBox, Save } from 'lucide-react';
 import { getLogMetadata, setLogMetadata } from '@/lib/api';
+import { useI18n } from '@/context/I18nContext';
 
 const FIELDS = [
     ['instrument_id', 'Instrument ID', 'SQM-LU-1234'],
@@ -20,6 +21,7 @@ const FIELDS = [
 ];
 
 export function DLHeaderForm() {
+    const { t } = useI18n();
     const [data, setData] = useState({
         instrument_id: '', data_supplier: '', location_name: '', position: '',
         local_timezone: '', time_sync: '', moving_stationary_position: 'STATIONARY',
@@ -54,9 +56,9 @@ export function DLHeaderForm() {
                 field_of_view_degrees: Number(data.field_of_view_degrees) || 20,
                 cover_offset_value: Number(data.cover_offset_value) || 0,
             });
-            toast.success('DL header metadata saved (used when logging DAT files)');
+            toast.success(t('toasts.success'));
         } catch (e) {
-            toast.error('Save failed');
+            toast.error(t('toasts.error'));
         } finally {
             setSaving(false);
         }

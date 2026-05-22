@@ -6,6 +6,7 @@ import { Loader2, RefreshCw, Cpu, Hash, Fingerprint, Wifi, Layers } from 'lucide
 import { PageHeader } from '@/components/PageHeader';
 import { getDeviceInfo, getCalibrationInfo, getSystemInfo } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 
 function Field({ icon: Icon, label, value, testid }) {
     return (
@@ -24,6 +25,7 @@ function Field({ icon: Icon, label, value, testid }) {
 }
 
 export default function InformationPage() {
+    const { t } = useI18n();
     const { status, info, setInfo } = useDevice();
     const [loading, setLoading] = useState(false);
     const [cal, setCal] = useState(null);
@@ -43,7 +45,7 @@ export default function InformationPage() {
                 } catch (e) { /* not all devices return cx */ }
             }
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Failed to fetch info');
+            toast.error(e?.response?.data?.detail || t('information.toastFetchFailed'));
         } finally {
             setLoading(false);
         }
@@ -57,8 +59,8 @@ export default function InformationPage() {
     return (
         <div>
             <PageHeader
-                title="Device Information"
-                description="Identification (ix) and calibration (cx) data returned by the SQM. Also shows host info."
+                title={t('information.title')}
+                description={t('information.description')}
                 actions={
                     <Button onClick={refresh} variant="secondary" data-testid="refresh-info-button">
                         {loading ? (
@@ -66,7 +68,7 @@ export default function InformationPage() {
                         ) : (
                             <RefreshCw className="size-4 mr-2" />
                         )}
-                        Refresh
+                        {t('common.refresh')}
                     </Button>
                 }
             />
@@ -74,20 +76,20 @@ export default function InformationPage() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
-                        <CardTitle>SQM Identity</CardTitle>
-                        <CardDescription>Response to the <span className="font-mono">ix</span> command.</CardDescription>
+                        <CardTitle>{t('information.sqmIdentity')}</CardTitle>
+                        <CardDescription>{t('information.identityDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {!status.connected ? (
-                            <p className="text-sm text-muted-foreground">Connect a device first to see its identity.</p>
+                            <p className="text-sm text-muted-foreground">{t('information.connectFirstIdentity')}</p>
                         ) : (
                             <div>
-                                <Field icon={Layers} label="Protocol Number" value={info?.protocol_number} testid="info-protocol" />
-                                <Field icon={Cpu} label="Model Number" value={info?.model_number} testid="info-model" />
-                                <Field icon={Hash} label="Feature Number" value={info?.feature_number} testid="info-feature" />
-                                <Field icon={Fingerprint} label="Serial Number" value={info?.serial_number} testid="info-serial" />
-                                <Field icon={Wifi} label="MAC Address" value={info?.mac_address} testid="info-mac" />
-                                <Field icon={Hash} label="Raw" value={info?.raw} testid="info-raw" />
+                                <Field icon={Layers} label={t('information.protocolNumber')} value={info?.protocol_number} testid="info-protocol" />
+                                <Field icon={Cpu} label={t('information.modelNumber')} value={info?.model_number} testid="info-model" />
+                                <Field icon={Hash} label={t('information.featureNumber')} value={info?.feature_number} testid="info-feature" />
+                                <Field icon={Fingerprint} label={t('information.serialNumber')} value={info?.serial_number} testid="info-serial" />
+                                <Field icon={Wifi} label={t('information.macAddress')} value={info?.mac_address} testid="info-mac" />
+                                <Field icon={Hash} label={t('information.rawResponse')} value={info?.raw} testid="info-raw" />
                             </div>
                         )}
                     </CardContent>
@@ -95,44 +97,19 @@ export default function InformationPage() {
 
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
-                        <CardTitle>Calibration</CardTitle>
-                        <CardDescription>Response to the <span className="font-mono">cx</span> command.</CardDescription>
+                        <CardTitle>{t('information.calibration')}</CardTitle>
+                        <CardDescription>{t('information.calibrationDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {!status.connected ? (
-                            <p className="text-sm text-muted-foreground">Connect a device first to see its calibration.</p>
+                            <p className="text-sm text-muted-foreground">{t('information.connectFirstCalibration')}</p>
                         ) : (
                             <div>
-                                <Field
-                                    icon={Layers}
-                                    label="Light Calibration (mpsas)"
-                                    value={cal?.light_calibration_mpsas?.toFixed(3)}
-                                    testid="cal-light-mpsas"
-                                />
-                                <Field
-                                    icon={Layers}
-                                    label="Light Calibration Period (s)"
-                                    value={cal?.light_calibration_period_s}
-                                    testid="cal-light-period"
-                                />
-                                <Field
-                                    icon={Layers}
-                                    label="Light Calibration Temperature (°C)"
-                                    value={cal?.light_calibration_temperature_c?.toFixed(1)}
-                                    testid="cal-light-temp"
-                                />
-                                <Field
-                                    icon={Layers}
-                                    label="Dark Calibration (mpsas)"
-                                    value={cal?.dark_calibration_mpsas?.toFixed(3)}
-                                    testid="cal-dark-mpsas"
-                                />
-                                <Field
-                                    icon={Layers}
-                                    label="Dark Calibration Temperature (°C)"
-                                    value={cal?.dark_calibration_temperature_c?.toFixed(1)}
-                                    testid="cal-dark-temp"
-                                />
+                                <Field icon={Layers} label={t('information.lightCalMpsas')} value={cal?.light_calibration_mpsas?.toFixed(3)} testid="cal-light-mpsas" />
+                                <Field icon={Layers} label={t('information.lightCalPeriod')} value={cal?.light_calibration_period_s} testid="cal-light-period" />
+                                <Field icon={Layers} label={t('information.lightCalTemp')} value={cal?.light_calibration_temperature_c?.toFixed(1)} testid="cal-light-temp" />
+                                <Field icon={Layers} label={t('information.darkCalMpsas')} value={cal?.dark_calibration_mpsas?.toFixed(3)} testid="cal-dark-mpsas" />
+                                <Field icon={Layers} label={t('information.darkCalTemp')} value={cal?.dark_calibration_temperature_c?.toFixed(1)} testid="cal-dark-temp" />
                             </div>
                         )}
                     </CardContent>
@@ -140,17 +117,17 @@ export default function InformationPage() {
 
                 <Card className="xl:col-span-12 bg-card/60">
                     <CardHeader>
-                        <CardTitle>Host Information</CardTitle>
-                        <CardDescription>Backend running on this machine.</CardDescription>
+                        <CardTitle>{t('information.hostInfo')}</CardTitle>
+                        <CardDescription>{t('information.hostDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6">
-                            <Field icon={Cpu} label="App" value={sys?.app + ' v' + sys?.version} testid="sys-app" />
-                            <Field icon={Cpu} label="Python" value={sys?.python} />
-                            <Field icon={Cpu} label="Platform" value={sys?.platform} />
-                            <Field icon={Hash} label="Mock Mode" value={sys?.mock_mode ? 'enabled' : 'disabled'} />
-                            <Field icon={Hash} label="pyudev" value={sys?.has_pyudev ? 'available' : 'missing'} />
-                            <Field icon={Hash} label="esptool" value={sys?.has_esptool ? 'available' : 'not installed'} />
+                            <Field icon={Cpu} label={t('information.app')} value={sys ? `${sys.app} v${sys.version}` : null} testid="sys-app" />
+                            <Field icon={Cpu} label={t('information.python')} value={sys?.python} />
+                            <Field icon={Cpu} label={t('information.platform')} value={sys?.platform} />
+                            <Field icon={Hash} label={t('information.mockMode')} value={sys?.mock_mode ? t('common.enabled') : t('common.disabled')} />
+                            <Field icon={Hash} label="pyudev" value={sys?.has_pyudev ? t('common.available') : t('common.missing')} />
+                            <Field icon={Hash} label="esptool" value={sys?.has_esptool ? t('common.available') : t('common.notInstalled')} />
                         </div>
                     </CardContent>
                 </Card>

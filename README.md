@@ -26,11 +26,18 @@ The app is a **hybrid local web app**:
 * **Find USB** — enumerates and classifies serial adapters (FTDI / CH340 / CP210x / PL2303).
 * **Information** — device identity (`ix`), calibration registers (`cx`), host info.
 * **Live Readings** — real-time mpsas, temperature, frequency, counts, period.
-* **Charts** — time-series chart of recent telemetry over WebSocket.
+* **Charts** — time-series chart of recent telemetry over WebSocket, with:
+    * Custom time period selector (1h / 6h / 24h / 7d / custom range / all data)
+    * **PNG / PDF export** of the current chart
+    * **Multi-night comparison overlay** (read historical `.dat`/`.csv` files and overlay nights on the same time-of-night x-axis)
 * **Continuous Logging** — CSV / Unihedron DAT files, configurable interval, start/stop.
 * **Configuration & Calibration** — set the device logging interval (`Lxxxxxxxxx`), arm/disarm light calibration (`zcalAx` / `zcalDx`).
-* **Firmware** — upload `.bin`/`.hex` files and flash via `esptool.py` (for DIY ESP boards).
+* **Firmware** — upload `.bin`/`.hex` files and flash via `esptool.py` (for DIY ESP boards), plus a **GitHub Releases** browser that fetches prebuilt firmware from [`TinQuen22Fr/SQM-Pro-ESP8266`](https://github.com/TinQuen22Fr/SQM-Pro-ESP8266) directly.
+* **Dashboard Sync** — embeds the public dashboard from `https://sqm.quentin-astro.fr/dashboard/<SensorID>` (auto-detected from the device or manually configured).
 * **Raw Command Console** — send arbitrary Unihedron commands and see raw responses.
+* **SQM Pro extensions** — extra cards for weather (BME280/TSL2591 via `w`), GPS (via `g0`), and SQM Pro specific calibration (`zcal1`/`zcal2`/`zcal3` + `A5*` switches).
+* **Bilingual UI (FR / EN)** — full French + English translations with an in-app language selector in **Settings**. Default language is French.
+* **Night Vision Mode** — toggle a dark-red theme to preserve dark adaptation at the eyepiece.
 * **Demo / Mock Mode** — try the whole UI without any hardware (`SQM_MOCK=1`).
 
 ---
@@ -267,7 +274,13 @@ All endpoints are prefixed with `/api`. Highlights:
 * `POST /device/interval` — `{seconds}`
 * `POST /device/calibrate` — `{action}` (`arm_light` | `disarm`)
 * `POST /logging/start` / `POST /logging/stop` / `GET /logging/status` / `GET /logging/sessions`
+* `GET  /logging/history?date=YYYY-MM-DD` — parse a previously logged CSV/DAT and return samples (used by the multi-night chart comparison)
 * `POST /firmware/upload` (multipart) / `POST /firmware/flash` / `GET /firmware/status`
+* `GET  /firmware/releases?repo=owner/repo` — proxied GitHub Releases listing
+* `POST /firmware/fetch_release` — download a release asset into the staging dir
+* `GET  /device/weather` / `GET /device/gps` — SQM Pro extensions (`w` / `g0`)
+* `GET  /device/sqm_pro/config` / `POST /device/sqm_pro/calibration` — SQM Pro config + calibration
+* `GET  /device/sqm_pro/identity` — best-effort detection of `SensorID` for the Dashboard Sync page
 * `WS   /api/ws/telemetry` — streams readings and logging events
 
 ---

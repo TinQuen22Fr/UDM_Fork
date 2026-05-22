@@ -59,6 +59,8 @@ code,
         --telemetry-warn: 43 74% 66%;
         --telemetry-bad: 0 72% 52%;
         --telemetry-idle: 215 16% 70%;
+        /* --bg-image is injected at runtime by App.js from src/assets/sky-bg.jpg */
+        --bg-veil: linear-gradient(rgba(5, 8, 15, 0.78), rgba(5, 8, 15, 0.85));
     }
 
     .night-vision {
@@ -100,32 +102,49 @@ code,
     body {
         background-color: hsl(var(--background));
         color: hsl(var(--foreground));
+        background-image: var(--bg-veil), var(--bg-image);
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }
+    .night-vision body {
+        /* Night vision: heavier red veil over the image (keep contrast for safety) */
+        background-image:
+            linear-gradient(rgba(40, 0, 0, 0.85), rgba(20, 0, 0, 0.92)),
+            var(--bg-image);
     }
 }
 
-/* Subtle starfield overlay */
+/* Subtle synthetic starfield - extra twinkles on top of the real photo */
 .starfield-overlay::before {
     content: '';
     position: fixed;
     inset: 0;
     pointer-events: none;
     background-image:
-        radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.35), transparent 60%),
-        radial-gradient(1px 1px at 75% 15%, rgba(255, 255, 255, 0.25), transparent 60%),
-        radial-gradient(1px 1px at 45% 80%, rgba(255, 255, 255, 0.3), transparent 60%),
-        radial-gradient(1px 1px at 85% 65%, rgba(255, 255, 255, 0.2), transparent 60%),
-        radial-gradient(1px 1px at 10% 90%, rgba(255, 255, 255, 0.18), transparent 60%);
-    opacity: 0.5;
+        radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.55), transparent 60%),
+        radial-gradient(1px 1px at 75% 15%, rgba(255, 255, 255, 0.45), transparent 60%),
+        radial-gradient(1px 1px at 45% 80%, rgba(255, 255, 255, 0.5), transparent 60%),
+        radial-gradient(1px 1px at 85% 65%, rgba(255, 255, 255, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 10% 90%, rgba(255, 255, 255, 0.3), transparent 60%);
+    opacity: 0.25;
     mix-blend-mode: screen;
     z-index: 0;
 }
 
 .night-vision .starfield-overlay::before {
     background-image:
-        radial-gradient(1px 1px at 20% 30%, rgba(255, 80, 80, 0.35), transparent 60%),
-        radial-gradient(1px 1px at 75% 15%, rgba(255, 80, 80, 0.25), transparent 60%),
-        radial-gradient(1px 1px at 45% 80%, rgba(255, 80, 80, 0.3), transparent 60%);
-    opacity: 0.4;
+        radial-gradient(1px 1px at 20% 30%, rgba(255, 80, 80, 0.55), transparent 60%),
+        radial-gradient(1px 1px at 75% 15%, rgba(255, 80, 80, 0.45), transparent 60%),
+        radial-gradient(1px 1px at 45% 80%, rgba(255, 80, 80, 0.5), transparent 60%);
+    opacity: 0.3;
+}
+
+/* Make cards lift off the photo background with a frosted-glass feel */
+[class*="bg-card/60"], [class*="bg-card/40"] {
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
 }
 
 /* Live value pulse */

@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Github, Download, Tag, Calendar, RefreshCw, FileBox } from 'lucide-react';
 import { downloadFirmwareRelease, fetchFirmwareReleases } from '@/lib/api';
+import { useI18n } from '@/context/I18nContext';
 
 const DEFAULT_REPO = 'TinQuen22Fr/SQM-Pro-ESP8266';
 
 export function GitHubReleasesCard({ onDownloaded }) {
+    const { t } = useI18n();
     const [releases, setReleases] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [repo, setRepo] = useState(DEFAULT_REPO);
+    const [repo] = useState(DEFAULT_REPO);
     const [downloadingUrl, setDownloadingUrl] = useState('');
 
     const refresh = async () => {
@@ -36,7 +38,7 @@ export function GitHubReleasesCard({ onDownloaded }) {
         setDownloadingUrl(asset.download_url);
         try {
             const r = await downloadFirmwareRelease(asset.download_url, asset.name);
-            toast.success(`Downloaded ${r.name} (${(r.size_bytes / 1024).toFixed(1)} KB)`);
+            toast.success(`${r.name} (${(r.size_bytes / 1024).toFixed(1)} KB)`);
             onDownloaded?.(r);
         } catch (e) {
             toast.error(e?.response?.data?.detail || 'Download failed');
@@ -50,20 +52,18 @@ export function GitHubReleasesCard({ onDownloaded }) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="flex items-center gap-2">
-                        <Github className="size-4 text-primary" /> GitHub Releases
+                        <Github className="size-4 text-primary" /> {t('firmware.githubReleases')}
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                        Pre-built firmware <code>.bin</code> from <span className="font-mono">{repo}</span>. Pick a release → Download → it appears in the firmware list above and is ready to Start flash.
-                    </CardDescription>
+                    <CardDescription className="text-xs">{t('firmware.githubReleasesDesc')} — <span className="font-mono">{repo}</span></CardDescription>
                 </div>
                 <Button size="sm" variant="secondary" onClick={refresh} disabled={loading} data-testid="releases-refresh-button">
                     {loading ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : <RefreshCw className="size-3.5 mr-2" />}
-                    Refresh
+                    {t('firmware.refreshReleases')}
                 </Button>
             </CardHeader>
             <CardContent className="space-y-2">
                 {releases.length === 0 && !loading && (
-                    <p className="text-xs text-muted-foreground">No releases found (or rate-limited by GitHub).</p>
+                    <p className="text-xs text-muted-foreground">{t('firmware.noReleases')}</p>
                 )}
                 {releases.map((rel) => (
                     <div
@@ -107,7 +107,7 @@ export function GitHubReleasesCard({ onDownloaded }) {
                                     ) : (
                                         <Download className="size-3 mr-1.5" />
                                     )}
-                                    Download
+                                    {t('firmware.downloadBin')}
                                 </Button>
                             </div>
                         ))}

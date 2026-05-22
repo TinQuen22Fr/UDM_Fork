@@ -6,14 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Sparkles, RefreshCw, Save, RotateCcw, Loader2 } from 'lucide-react';
 import { getSqmProConfig, setSqmProCalibration } from '@/lib/api';
+import { useI18n } from '@/context/I18nContext';
 
-/**
- * Calibration panel specific to the SQM Pro firmware
- * (https://github.com/TinQuen22Fr/SQM-Pro-ESP8266). Uses the firmware's
- * own zcal1/zcal2/zcal3 + zcale/zcald + A50/A51/A5d/A5e commands.
- * Auto-hides if the device doesn't answer the 'g' read-config command.
- */
 export function SQMProCalibrationCard({ connected }) {
+    const { t } = useI18n();
     const [cfg, setCfg] = useState(null);
     const [supported, setSupported] = useState(false);
     const [draft, setDraft] = useState({});
@@ -54,24 +50,24 @@ export function SQMProCalibrationCard({ connected }) {
         try {
             const body = { ...draft, ...extra };
             const r = await setSqmProCalibration(body);
-            toast.success(`Wrote ${r.results.length} setting(s) to device`);
+            toast.success(t('configuration.toastWrote', { n: r.results.length }));
             await refresh();
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Failed');
+            toast.error(e?.response?.data?.detail || t('configuration.toastFailed'));
         } finally {
             setBusy(false);
         }
     };
 
     const factoryReset = async () => {
-        if (!window.confirm('Send factory reset (zcalDx) to the device?')) return;
+        if (!window.confirm(t('configuration.confirmCalCmd', { action: 'factory_reset' }))) return;
         setBusy(true);
         try {
             await setSqmProCalibration({ factory_reset: true });
-            toast.success('Factory reset sent');
+            toast.success(t('configuration.toastSent', { action: 'factory_reset' }));
             await refresh();
         } catch (e) {
-            toast.error('Failed');
+            toast.error(t('configuration.toastFailed'));
         } finally {
             setBusy(false);
         }
@@ -82,12 +78,9 @@ export function SQMProCalibrationCard({ connected }) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="size-4 text-primary" /> SQM Pro calibration
+                        <Sparkles className="size-4 text-primary" /> {t('sqmpro.calTitle')}
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                        DIY firmware specific commands (zcal1 / zcal2 / zcal3 / A50…A5e).
-                        Auto-detected from <span className="font-mono">g</span> read-config response.
-                    </CardDescription>
+                    <CardDescription className="text-xs">{t('sqmpro.calDesc')}</CardDescription>
                 </div>
                 <Button size="icon" variant="ghost" onClick={refresh} disabled={busy} data-testid="sqmpro-refresh-button">
                     <RefreshCw className={`size-3.5 ${busy ? 'animate-spin' : ''}`} />
@@ -103,7 +96,7 @@ export function SQMProCalibrationCard({ connected }) {
                         step="0.01"
                     />
                     <Numeric
-                        label="Temperature offset (°C) — zcal2"
+                        label="Temp offset (°C) — zcal2"
                         value={draft.temp_offset_c}
                         onChange={(v) => setDraft((d) => ({ ...d, temp_offset_c: v }))}
                         testid="sqmpro-temp-offset"
@@ -119,7 +112,7 @@ export function SQMProCalibrationCard({ connected }) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-                    <Toggle label="Auto temp. calibration (zcale/zcald)" value={draft.auto_temp_cal} onChange={(v) => setDraft((d) => ({ ...d, auto_temp_cal: v }))} testid="sqmpro-auto-tc" />
+                    <Toggle label="Auto temp. cal (zcale/zcald)" value={draft.auto_temp_cal} onChange={(v) => setDraft((d) => ({ ...d, auto_temp_cal: v }))} testid="sqmpro-auto-tc" />
                     <Toggle label="OLED on (A51/A50)" value={draft.oled_on} onChange={(v) => setDraft((d) => ({ ...d, oled_on: v }))} testid="sqmpro-oled" />
                     <Toggle label="Auto-contrast (A5e/A5d)" value={draft.auto_contrast} onChange={(v) => setDraft((d) => ({ ...d, auto_contrast: v }))} testid="sqmpro-auto-contrast" />
                 </div>
@@ -127,7 +120,7 @@ export function SQMProCalibrationCard({ connected }) {
                 <div className="flex gap-2 flex-wrap pt-2">
                     <Button onClick={() => apply()} disabled={busy} data-testid="sqmpro-apply-button">
                         {busy ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
-                        Apply changes
+                        {t('common.apply')}
                     </Button>
                     <Button onClick={factoryReset} variant="destructive" disabled={busy} data-testid="sqmpro-factory-reset-button">
                         <RotateCcw className="size-4 mr-2" /> Factory reset (zcalDx)

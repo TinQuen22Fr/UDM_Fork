@@ -45,6 +45,8 @@ export const logDownloadUrl = (name) => `${API_BASE}/logging/download/${encodeUR
 export const getLogMetadata = () => http.get('/logging/metadata').then((r) => r.data);
 export const setLogMetadata = (data) =>
     http.post('/logging/metadata', data).then((r) => r.data);
+export const getLogHistory = (params) =>
+    http.get('/logging/history', { params }).then((r) => r.data);
 
 // Calibration extras
 export const setCalibrationValues = (params) =>
@@ -74,6 +76,8 @@ export const getGps = () => http.get('/device/gps').then((r) => r.data);
 export const getSqmProConfig = () => http.get('/device/sqm_pro/config').then((r) => r.data);
 export const setSqmProCalibration = (data) =>
     http.post('/device/sqm_pro/calibration', data).then((r) => r.data);
+export const getSqmProIdentity = () =>
+    http.get('/device/sqm_pro/identity').then((r) => r.data);
 
 // GitHub firmware releases (proxy)
 export const fetchFirmwareReleases = (repo = 'TinQuen22Fr/SQM-Pro-ESP8266') =>

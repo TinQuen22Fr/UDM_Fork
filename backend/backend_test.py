@@ -125,6 +125,7 @@ class SQMAPITester:
         self.test("Get info (should fail - not connected)", "GET", "/device/info", 409)
         self.test("Get reading (should fail - not connected)", "GET", "/device/reading", 409)
         self.test("Get calibration (should fail - not connected)", "GET", "/device/calibration", 409)
+        self.test("Get SQM Pro identity (should fail - not connected - NEW)", "GET", "/device/sqm_pro/identity", 409)
 
         # 7. Connect to CH340 mock device
         success, data = self.test(
@@ -244,6 +245,106 @@ class SQMAPITester:
             resp = data.get('response', '')
             if 'OK' in resp or 'z' in resp:
                 self.log("   ✓ Arm dark calibration command accepted", Colors.GREEN)
+
+        # 16a. NEW: Test SQM Pro weather endpoint
+        success, data = self.test(
+            "Get SQM Pro weather (NEW)",
+            "GET",
+            "/device/weather",
+            200
+        )
+        if success:
+            self.log(f"   mpsas: {data.get('mpsas')}", Colors.YELLOW)
+            self.log(f"   temperature_c: {data.get('temperature_c')}", Colors.YELLOW)
+            self.log(f"   humidity_pct: {data.get('humidity_pct')}", Colors.YELLOW)
+            self.log(f"   pressure_hpa: {data.get('pressure_hpa')}", Colors.YELLOW)
+            self.log(f"   ir: {data.get('ir')}", Colors.YELLOW)
+            self.log(f"   vis: {data.get('vis')}", Colors.YELLOW)
+            if data.get('mpsas') and data.get('temperature_c'):
+                self.log("   ✓ Weather data returned correctly", Colors.GREEN)
+
+        # 16a2. NEW: Test SQM Pro GPS endpoint
+        success, data = self.test(
+            "Get SQM Pro GPS (NEW)",
+            "GET",
+            "/device/gps",
+            200
+        )
+        if success:
+            self.log(f"   latitude: {data.get('latitude')}", Colors.YELLOW)
+            self.log(f"   longitude: {data.get('longitude')}", Colors.YELLOW)
+            self.log(f"   fix_quality: {data.get('fix_quality')}", Colors.YELLOW)
+            self.log(f"   satellites: {data.get('satellites')}", Colors.YELLOW)
+            if data.get('latitude') is not None:
+                self.log("   ✓ GPS data returned", Colors.GREEN)
+
+        # 16a3. NEW: Test SQM Pro config endpoint
+        success, data = self.test(
+            "Get SQM Pro config (NEW)",
+            "GET",
+            "/device/sqm_pro/config",
+            200
+        )
+        if success:
+            self.log(f"   sqm_cal_offset_mpsas: {data.get('sqm_cal_offset_mpsas')}", Colors.YELLOW)
+            self.log(f"   temp_cal_offset_c: {data.get('temp_cal_offset_c')}", Colors.YELLOW)
+            self.log(f"   auto_temp_cal: {data.get('auto_temp_cal')}", Colors.YELLOW)
+            self.log(f"   oled_on: {data.get('oled_on')}", Colors.YELLOW)
+            self.log(f"   display_contrast: {data.get('display_contrast')}", Colors.YELLOW)
+            if data.get('sqm_cal_offset_mpsas') is not None:
+                self.log("   ✓ SQM Pro config returned correctly", Colors.GREEN)
+
+        # 16a4. NEW: Test SQM Pro identity endpoint (CRITICAL NEW ENDPOINT)
+        success, data = self.test(
+            "Get SQM Pro identity - CONNECTED (NEW)",
+            "GET",
+            "/device/sqm_pro/identity",
+            200
+        )
+        if success:
+            sensor_id = data.get('sensor_id')
+            sensor_key = data.get('sensor_key')
+            serial_number = data.get('serial_number')
+            mac_address = data.get('mac_address')
+            raw_identity = data.get('raw_identity')
+            
+            self.log(f"   sensor_id: {sensor_id}", Colors.YELLOW)
+            self.log(f"   sensor_key: {sensor_key}", Colors.YELLOW)
+            self.log(f"   serial_number: {serial_number}", Colors.YELLOW)
+            self.log(f"   mac_address: {mac_address}", Colors.YELLOW)
+            self.log(f"   raw_identity: {raw_identity}", Colors.YELLOW)
+            
+            # Verify expected mock response for CH340 DIY device
+            if sensor_id == 'SQMPRO-DEMO-20200604':
+                self.log("   ✓ Correct sensor_id for DIY CH340 mock device", Colors.GREEN)
+            else:
+                self.log(f"   ✗ Expected sensor_id 'SQMPRO-DEMO-20200604', got '{sensor_id}'", Colors.RED)
+            
+            if serial_number == 9999:
+                self.log("   ✓ Correct serial_number for DIY device", Colors.GREEN)
+
+        # 16a5. NEW: Test SQM Pro calibration endpoint
+        success, data = self.test(
+            "Set SQM Pro calibration (NEW)",
+            "POST",
+            "/device/sqm_pro/calibration",
+            200,
+            data={
+                "sqm_offset_mpsas": 0.5,
+                "temp_offset_c": 0.0,
+                "display_contrast": 128,
+                "auto_temp_cal": True,
+                "oled_on": True,
+                "auto_contrast": False
+            }
+        )
+        if success:
+            results = data.get('results', [])
+            self.log(f"   Results count: {len(results)}", Colors.YELLOW)
+            if len(results) >= 4:
+                self.log("   ✓ SQM Pro calibration commands sent", Colors.GREEN)
+            for r in results:
+                self.log(f"   - {r.get('cmd')}: {r.get('response')}", Colors.YELLOW)
 
         # 16b. Calibrate - invalid action (should fail)
         self.test(
@@ -428,6 +529,79 @@ class SQMAPITester:
                 except Exception as e:
                     self.log(f"   ✗ Failed to verify DAT content: {e}", Colors.RED)
 
+        # 20f. NEW: Test logging/history endpoint - no file exists
+        success, data = self.test(
+            "Get logging history - no file (NEW)",
+            "GET",
+            "/logging/history",
+            200,
+            params={"date": "2025-05-22"}
+        )
+        if success:
+            samples = data.get('samples', [])
+            file_name = data.get('file')
+            count = data.get('count', 0)
+            self.log(f"   samples: {len(samples)}", Colors.YELLOW)
+            self.log(f"   file: {file_name}", Colors.YELLOW)
+            self.log(f"   count: {count}", Colors.YELLOW)
+            if len(samples) == 0 and file_name is None and count == 0:
+                self.log("   ✓ Correctly returns empty result when no file exists", Colors.GREEN)
+
+        # 20g. NEW: Test logging/history endpoint - with existing file
+        # First, get the list of sessions to find a file
+        success, sessions_data = self.test("List sessions for history test", "GET", "/logging/sessions", 200)
+        if success:
+            sessions = sessions_data.get('sessions', [])
+            if sessions:
+                # Use the first session file
+                test_file = sessions[0]['name']
+                self.log(f"\n📂 Testing history with file: {test_file}", Colors.BLUE)
+                
+                success, data = self.test(
+                    f"Get logging history - with file (NEW)",
+                    "GET",
+                    "/logging/history",
+                    200,
+                    params={"file": test_file}
+                )
+                if success:
+                    samples = data.get('samples', [])
+                    file_name = data.get('file')
+                    count = data.get('count', 0)
+                    self.log(f"   samples: {len(samples)}", Colors.YELLOW)
+                    self.log(f"   file: {file_name}", Colors.YELLOW)
+                    self.log(f"   count: {count}", Colors.YELLOW)
+                    
+                    if count > 0 and len(samples) > 0:
+                        self.log("   ✓ History returned samples from file", Colors.GREEN)
+                        # Verify sample structure
+                        sample = samples[0]
+                        if 'ts' in sample:
+                            self.log(f"   ✓ Sample has 'ts' field: {sample['ts']}", Colors.GREEN)
+                        if 'mpsas' in sample:
+                            self.log(f"   ✓ Sample has 'mpsas' field: {sample['mpsas']}", Colors.GREEN)
+                        if 'temperature' in sample:
+                            self.log(f"   ✓ Sample has 'temperature' field: {sample['temperature']}", Colors.GREEN)
+                    else:
+                        self.log("   ✗ No samples returned from existing file", Colors.RED)
+                
+                # Test with date parameter (extract date from filename if possible)
+                import re
+                date_match = re.search(r'(\d{4}-\d{2}-\d{2})', test_file)
+                if date_match:
+                    test_date = date_match.group(1)
+                    success, data = self.test(
+                        f"Get logging history - by date (NEW)",
+                        "GET",
+                        "/logging/history",
+                        200,
+                        params={"date": test_date}
+                    )
+                    if success:
+                        samples = data.get('samples', [])
+                        if len(samples) > 0:
+                            self.log(f"   ✓ History by date returned {len(samples)} samples", Colors.GREEN)
+
         # 21. List logging sessions
         success, data = self.test("List logging sessions", "GET", "/logging/sessions", 200)
         if success:
@@ -499,6 +673,35 @@ class SQMAPITester:
         success, data = self.test("Get firmware flash status", "GET", "/firmware/status", 200)
         if success:
             self.log(f"   Running: {data.get('running')}", Colors.YELLOW)
+
+        # 26a. NEW: Test firmware/releases endpoint (GitHub proxy)
+        success, data = self.test(
+            "Get firmware releases from GitHub (NEW)",
+            "GET",
+            "/firmware/releases",
+            200,
+            params={"repo": "TinQuen22Fr/SQM-Pro-ESP8266"}
+        )
+        if success:
+            repo = data.get('repo')
+            count = data.get('count', 0)
+            releases = data.get('releases', [])
+            self.log(f"   repo: {repo}", Colors.YELLOW)
+            self.log(f"   count: {count}", Colors.YELLOW)
+            if count > 0:
+                self.log(f"   ✓ Found {count} releases", Colors.GREEN)
+                # Check first release structure
+                if releases:
+                    r = releases[0]
+                    self.log(f"   Latest: {r.get('name')} ({r.get('tag_name')})", Colors.YELLOW)
+                    if 'assets' in r:
+                        assets = r['assets']
+                        self.log(f"   Assets: {len(assets)}", Colors.YELLOW)
+                        if assets:
+                            self.log(f"   First asset: {assets[0].get('name')}", Colors.YELLOW)
+                            self.log("   ✓ Release has assets", Colors.GREEN)
+            else:
+                self.log("   ⚠️  No releases found (may be rate-limited or repo issue)", Colors.YELLOW)
 
         # 27. Disconnect from CH340
         success, data = self.test("Disconnect from CH340", "POST", "/device/disconnect", 200)

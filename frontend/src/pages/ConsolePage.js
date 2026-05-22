@@ -7,16 +7,12 @@ import { Send, Eraser, Terminal as TerminalIcon } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { sendRawCommand } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 
-const PRESETS = [
-    { label: 'ix - Info', cmd: 'ix' },
-    { label: 'rx - Reading', cmd: 'rx' },
-    { label: 'ux - Un-averaged', cmd: 'ux' },
-    { label: 'cx - Calibration', cmd: 'cx' },
-    { label: 'Ix - Get interval', cmd: 'Ix' },
-];
+const PRESETS = ['ix', 'rx', 'ux', 'cx', 'Ix'];
 
 export default function ConsolePage() {
+    const { t } = useI18n();
     const { status } = useDevice();
     const [lines, setLines] = useState([]);
     const [cmd, setCmd] = useState('');
@@ -30,7 +26,7 @@ export default function ConsolePage() {
     const send = async (c) => {
         const command = (c ?? cmd).trim();
         if (!command) return;
-        if (!status.connected) return toast.error('Connect first');
+        if (!status.connected) return toast.error(t('console.toastConnect'));
         setBusy(true);
         setLines((prev) => [...prev, { kind: 'send', text: command, ts: new Date().toISOString() }]);
         try {
@@ -47,11 +43,11 @@ export default function ConsolePage() {
     return (
         <div>
             <PageHeader
-                title="Raw Command Console"
-                description="Send arbitrary Unihedron-style commands directly to the device and view raw responses."
+                title={t('console.title')}
+                description={t('console.description')}
                 actions={
                     <Button variant="ghost" onClick={() => setLines([])} data-testid="console-clear-button">
-                        <Eraser className="size-4 mr-2" /> Clear
+                        <Eraser className="size-4 mr-2" /> {t('common.clear')}
                     </Button>
                 }
             />
@@ -59,28 +55,28 @@ export default function ConsolePage() {
             <Card className="bg-card/60">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <TerminalIcon className="size-4 text-primary" /> Serial Terminal
+                        <TerminalIcon className="size-4 text-primary" /> {t('console.serialTerminal')}
                     </CardTitle>
-                    <CardDescription>Bytes are sent verbatim (no automatic newline). Use the presets for common commands.</CardDescription>
+                    <CardDescription>{t('console.serialTerminalDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex gap-2 flex-wrap mb-3">
                         {PRESETS.map((p) => (
                             <Button
-                                key={p.cmd}
+                                key={p}
                                 size="sm"
                                 variant="secondary"
-                                onClick={() => send(p.cmd)}
+                                onClick={() => send(p)}
                                 disabled={busy || !status.connected}
-                                data-testid={`preset-${p.cmd}`}
+                                data-testid={`preset-${p}`}
                             >
-                                {p.label}
+                                {t(`console.preset.${p}`)}
                             </Button>
                         ))}
                     </div>
                     <div className="rounded-lg border border-border bg-background/60 p-3 h-[420px] overflow-auto font-mono text-xs" data-testid="console-output">
                         {lines.length === 0 && (
-                            <p className="text-muted-foreground">No I/O yet. Try a preset above.</p>
+                            <p className="text-muted-foreground">{t('console.noIO')}</p>
                         )}
                         {lines.map((l, i) => (
                             <div key={i} className="flex gap-2 items-start py-0.5">
@@ -109,7 +105,7 @@ export default function ConsolePage() {
                         }}
                     >
                         <Input
-                            placeholder='Type a command (e.g. "rx")'
+                            placeholder={t('console.typeCommand')}
                             value={cmd}
                             onChange={(e) => setCmd(e.target.value)}
                             className="font-mono"
@@ -117,7 +113,7 @@ export default function ConsolePage() {
                             disabled={busy || !status.connected}
                         />
                         <Button type="submit" disabled={busy || !cmd || !status.connected} data-testid="console-send-button">
-                            <Send className="size-4 mr-2" /> Send
+                            <Send className="size-4 mr-2" /> {t('common.send')}
                         </Button>
                     </form>
                 </CardContent>

@@ -5,11 +5,14 @@ import {
     BookOpen,
     Cable,
     FileBarChart2,
+    Globe,
     HelpCircle,
     Info,
+    LayoutDashboard,
     Menu,
     Moon,
     Radio,
+    Settings,
     Settings2,
     Sparkles,
     Sun,
@@ -22,22 +25,26 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils';
 
-const NAV = [
-    { to: '/connection', label: 'Find USB', icon: Cable, testid: 'sidebar-connection-link' },
-    { to: '/information', label: 'Information', icon: Info, testid: 'sidebar-information-link' },
-    { to: '/readings', label: 'Readings', icon: Activity, testid: 'sidebar-readings-link' },
-    { to: '/charts', label: 'Charts', icon: FileBarChart2, testid: 'sidebar-charts-link' },
-    { to: '/logging', label: 'Logging', icon: BookOpen, testid: 'sidebar-logging-link' },
-    { to: '/configuration', label: 'Configuration', icon: Settings2, testid: 'sidebar-configuration-link' },
-    { to: '/firmware', label: 'Firmware', icon: UploadCloud, testid: 'sidebar-firmware-link' },
-    { to: '/console', label: 'Console', icon: Terminal, testid: 'sidebar-console-link' },
-    { to: '/help', label: 'Help', icon: HelpCircle, testid: 'sidebar-help-link' },
+const NAV_DEF = [
+    { to: '/connection', key: 'connection', icon: Cable, testid: 'sidebar-connection-link' },
+    { to: '/information', key: 'information', icon: Info, testid: 'sidebar-information-link' },
+    { to: '/readings', key: 'readings', icon: Activity, testid: 'sidebar-readings-link' },
+    { to: '/charts', key: 'charts', icon: FileBarChart2, testid: 'sidebar-charts-link' },
+    { to: '/logging', key: 'logging', icon: BookOpen, testid: 'sidebar-logging-link' },
+    { to: '/configuration', key: 'configuration', icon: Settings2, testid: 'sidebar-configuration-link' },
+    { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard, testid: 'sidebar-dashboard-link' },
+    { to: '/firmware', key: 'firmware', icon: UploadCloud, testid: 'sidebar-firmware-link' },
+    { to: '/console', key: 'console', icon: Terminal, testid: 'sidebar-console-link' },
+    { to: '/settings', key: 'settings', icon: Settings, testid: 'sidebar-settings-link' },
+    { to: '/help', key: 'help', icon: HelpCircle, testid: 'sidebar-help-link' },
 ];
 
 function SidebarContent({ onNavigate }) {
     const loc = useLocation();
+    const { t, lang, setLang } = useI18n();
     return (
         <div className="h-full flex flex-col">
             <div className="px-5 pt-5 pb-3 flex items-center gap-3">
@@ -45,13 +52,13 @@ function SidebarContent({ onNavigate }) {
                     <Sparkles className="size-4 text-primary" />
                 </div>
                 <div>
-                    <div className="text-sm font-semibold tracking-tight">UDM Fork</div>
-                    <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Sky Quality Meter</div>
+                    <div className="text-sm font-semibold tracking-tight">{t('shell.appName')}</div>
+                    <div className="text-[11px] text-muted-foreground uppercase tracking-wider">{t('shell.appSubtitle')}</div>
                 </div>
             </div>
             <Separator />
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-auto" data-testid="sidebar-nav">
-                {NAV.map((item) => {
+                {NAV_DEF.map((item) => {
                     const Icon = item.icon;
                     const active = loc.pathname.startsWith(item.to);
                     return (
@@ -68,18 +75,45 @@ function SidebarContent({ onNavigate }) {
                             )}
                         >
                             <Icon className="size-4 shrink-0" />
-                            <span>{item.label}</span>
+                            <span>{t(`nav.${item.key}`)}</span>
                         </Link>
                     );
                 })}
             </nav>
             <Separator />
-            <div className="px-5 py-4 text-[11px] text-muted-foreground">
+            <div className="px-3 py-3">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border bg-card/40">
+                    <Globe className="size-3.5 text-muted-foreground shrink-0" />
+                    <button
+                        type="button"
+                        onClick={() => setLang('fr')}
+                        data-testid="lang-fr-button"
+                        className={cn(
+                            'flex-1 text-xs py-1 rounded transition-colors',
+                            lang === 'fr' ? 'bg-primary/15 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                    >
+                        FR
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLang('en')}
+                        data-testid="lang-en-button"
+                        className={cn(
+                            'flex-1 text-xs py-1 rounded transition-colors',
+                            lang === 'en' ? 'bg-primary/15 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                    >
+                        EN
+                    </button>
+                </div>
+            </div>
+            <div className="px-5 pb-4 text-[11px] text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                     <Radio className="size-3" />
-                    <span>Unihedron-compatible serial @ 115200 8N1</span>
+                    <span>{t('shell.protocolFooter')}</span>
                 </div>
-                <div className="mt-1">Supports FTDI &amp; CH340 (DIY ESP8266)</div>
+                <div className="mt-1">{t('shell.supportFooter')}</div>
             </div>
         </div>
     );
@@ -89,6 +123,7 @@ export function AppShell({ children }) {
     const [open, setOpen] = useState(false);
     const [nightVision, setNightVision] = useState(() => localStorage.getItem('udm.nightVision') === '1');
     const { status, wsConnected, latestReading } = useDevice();
+    const { t } = useI18n();
 
     useEffect(() => {
         const root = document.documentElement;
@@ -97,12 +132,29 @@ export function AppShell({ children }) {
         localStorage.setItem('udm.nightVision', nightVision ? '1' : '0');
     }, [nightVision]);
 
+    // Listen for cross-tab/component nightVision changes via storage event
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.key === 'udm.nightVision') {
+                setNightVision(e.newValue === '1');
+            }
+        };
+        window.addEventListener('storage', handler);
+        // Also expose a direct event for same-tab updates
+        const customHandler = (e) => setNightVision(!!e.detail);
+        window.addEventListener('udm:night-vision', customHandler);
+        return () => {
+            window.removeEventListener('storage', handler);
+            window.removeEventListener('udm:night-vision', customHandler);
+        };
+    }, []);
+
     const dotColor = status.connected
         ? 'bg-[hsl(var(--telemetry-good))]'
         : 'bg-muted-foreground/50';
 
     return (
-        <div className="min-h-screen w-full flex bg-background text-foreground starfield-overlay">
+        <div className="min-h-screen w-full flex text-foreground starfield-overlay">
             {/* Desktop sidebar */}
             <aside className="hidden lg:flex w-[280px] shrink-0 border-r border-border bg-card/40 backdrop-blur relative z-10">
                 <SidebarContent />
@@ -117,7 +169,7 @@ export function AppShell({ children }) {
                                 variant="ghost"
                                 size="icon"
                                 className="lg:hidden"
-                                aria-label="Open navigation"
+                                aria-label={t('shell.openNavigation')}
                                 data-testid="sidebar-toggle"
                             >
                                 <Menu className="size-5" />
@@ -149,7 +201,7 @@ export function AppShell({ children }) {
                                     : 'text-muted-foreground'
                             )}
                         >
-                            {status.connected ? 'Connected' : 'Disconnected'}
+                            {status.connected ? t('common.connected') : t('common.disconnected')}
                         </Badge>
                         {status.connected && status.port && (
                             <span className="text-xs font-mono text-muted-foreground hidden sm:inline">
@@ -158,7 +210,7 @@ export function AppShell({ children }) {
                         )}
                         {status.mock_mode && (
                             <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                                Demo Mode
+                                {t('common.demoMode')}
                             </Badge>
                         )}
                     </div>
@@ -199,10 +251,10 @@ export function AppShell({ children }) {
                             <Switch
                                 checked={nightVision}
                                 onCheckedChange={setNightVision}
-                                aria-label="Night Vision Mode"
+                                aria-label={t('shell.nightVision')}
                                 data-testid="night-vision-toggle"
                             />
-                            <span className="text-xs text-muted-foreground hidden sm:inline">Night</span>
+                            <span className="text-xs text-muted-foreground hidden sm:inline">{t('shell.night')}</span>
                         </div>
                     </div>
                 </header>

@@ -141,6 +141,12 @@ class MockSerial:
         elif data.startswith(b"gx") or (data.startswith(b"g") and not data.startswith(b"g0")):
             # SQM Pro read-config response
             resp = b"g, 0.50m, 0.0C,TC:Y,A5,11,DC:128\r\n"
+        elif data.startswith(b"sx") or data.startswith(b"idx"):
+            # Mock sensor id used by the dashboard companion (sqm.quentin-astro.fr)
+            if self._is_diy:
+                resp = b"SENSOR:SQMPRO-DEMO-20200604\r\n"
+            else:
+                resp = b"?,UNKNOWN\r\n"
         else:
             resp = b"?,UNKNOWN\r\n"
         self._buf += resp

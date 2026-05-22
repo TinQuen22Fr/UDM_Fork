@@ -10,6 +10,7 @@ import { StatCard } from '@/components/StatCard';
 import { WeatherCard, GpsCard } from '@/components/SQMProCards';
 import { getDeviceReading } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 
 function mpsasStatus(v) {
     if (v == null) return undefined;
@@ -20,20 +21,21 @@ function mpsasStatus(v) {
 }
 
 export default function ReadingsPage() {
+    const { t } = useI18n();
     const { status, latestReading, history, clearHistory } = useDevice();
     const [manualLoading, setManualLoading] = useState(false);
     const [averaged, setAveraged] = useState(true);
     const [manualResp, setManualResp] = useState(null);
 
     const onRead = async () => {
-        if (!status.connected) return toast.error('Connect a device first');
+        if (!status.connected) return toast.error(t('readings.toastConnectFirst'));
         setManualLoading(true);
         try {
             const r = await getDeviceReading(averaged);
             setManualResp(r);
-            toast.success('Reading retrieved');
+            toast.success(t('readings.toastRetrieved'));
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Reading failed');
+            toast.error(e?.response?.data?.detail || t('readings.toastReadFailed'));
         } finally {
             setManualLoading(false);
         }
@@ -44,13 +46,13 @@ export default function ReadingsPage() {
     return (
         <div>
             <PageHeader
-                title="Live Readings"
-                description="Real-time SQM telemetry over the serial protocol (rx / ux)."
+                title={t('readings.title')}
+                description={t('readings.description')}
                 actions={
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Switch checked={averaged} onCheckedChange={setAveraged} data-testid="averaged-toggle" />
-                            <span>{averaged ? 'Averaged (rx)' : 'Un-averaged (ux)'}</span>
+                            <span>{averaged ? t('readings.averaged') : t('readings.unaveraged')}</span>
                         </div>
                         <Button onClick={onRead} variant="secondary" disabled={!status.connected} data-testid="manual-read-button">
                             {manualLoading ? (
@@ -58,7 +60,7 @@ export default function ReadingsPage() {
                             ) : (
                                 <RefreshCw className="size-4 mr-2" />
                             )}
-                            Read now
+                            {t('readings.readNow')}
                         </Button>
                     </div>
                 }
@@ -66,29 +68,29 @@ export default function ReadingsPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <StatCard
-                    label="Sky Brightness"
+                    label={t('readings.skyBrightness')}
                     value={r?.mpsas != null ? r.mpsas.toFixed(2) : '—'}
                     unit="mag/arcsec²"
                     status={mpsasStatus(r?.mpsas)}
-                    hint="Higher = darker sky"
+                    hint={t('readings.skyHint')}
                     testid="live-mpsas-value"
                 />
                 <StatCard
-                    label="Temperature"
+                    label={t('readings.temperature')}
                     value={r?.temperature_c != null ? r.temperature_c.toFixed(1) : '—'}
                     unit="°C"
                     testid="live-temp-value"
                 />
                 <StatCard
-                    label="Frequency"
+                    label={t('readings.frequency')}
                     value={r?.frequency_hz != null ? r.frequency_hz.toFixed(0) : '—'}
                     unit="Hz"
                     testid="live-freq-value"
                 />
                 <StatCard
-                    label="Counts"
+                    label={t('readings.counts')}
                     value={r?.counts != null ? r.counts.toLocaleString() : '—'}
-                    unit="period"
+                    unit={t('readings.period')}
                     testid="live-counts-value"
                 />
             </div>
@@ -97,10 +99,10 @@ export default function ReadingsPage() {
                 <Card className="xl:col-span-8 bg-card/60">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle>Real-time mpsas</CardTitle>
-                            <CardDescription>Recent {history.length} samples (auto-streamed via WebSocket).</CardDescription>
+                            <CardTitle>{t('readings.realtimeMpsas')}</CardTitle>
+                            <CardDescription>{t('readings.realtimeDesc', { count: history.length })}</CardDescription>
                         </div>
-                        <Button size="sm" variant="ghost" onClick={clearHistory} data-testid="clear-history-button">Clear</Button>
+                        <Button size="sm" variant="ghost" onClick={clearHistory} data-testid="clear-history-button">{t('common.clear')}</Button>
                     </CardHeader>
                     <CardContent>
                         <div className="h-64">
@@ -143,26 +145,26 @@ export default function ReadingsPage() {
 
                 <Card className="xl:col-span-4 bg-card/60">
                     <CardHeader>
-                        <CardTitle>Manual Reading</CardTitle>
-                        <CardDescription>Last single response from the device.</CardDescription>
+                        <CardTitle>{t('readings.manualReading')}</CardTitle>
+                        <CardDescription>{t('readings.manualDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {manualResp ? (
                             <div className="space-y-2 text-sm">
-                                <Row icon={Gauge} label="mpsas" value={manualResp.mpsas?.toFixed(3)} />
-                                <Row icon={Activity} label="Frequency (Hz)" value={manualResp.frequency_hz} />
-                                <Row icon={Timer} label="Period (s)" value={manualResp.period_s} />
-                                <Row icon={Activity} label="Counts" value={manualResp.counts} />
-                                <Row icon={Thermometer} label="Temperature (°C)" value={manualResp.temperature_c?.toFixed(1)} />
+                                <Row icon={Gauge} label={t('readings.mpsasLabel')} value={manualResp.mpsas?.toFixed(3)} />
+                                <Row icon={Activity} label={t('readings.freqHz')} value={manualResp.frequency_hz} />
+                                <Row icon={Timer} label={t('readings.periodS')} value={manualResp.period_s} />
+                                <Row icon={Activity} label={t('readings.countsLabel')} value={manualResp.counts} />
+                                <Row icon={Thermometer} label={t('readings.tempC')} value={manualResp.temperature_c?.toFixed(1)} />
                                 <div className="pt-2">
-                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Raw</div>
+                                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{t('common.raw')}</div>
                                     <pre className="mt-1 font-mono text-xs whitespace-pre-wrap break-words bg-secondary/50 rounded p-2 border border-border">
                                         {manualResp.raw}
                                     </pre>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">No manual reading yet.</p>
+                            <p className="text-sm text-muted-foreground">{t('readings.noManual')}</p>
                         )}
                     </CardContent>
                 </Card>

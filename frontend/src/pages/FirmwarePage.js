@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UploadCloud, Loader2, FileBox, ZapOff, AlertTriangle, Info as InfoIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -11,10 +10,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { GitHubReleasesCard } from '@/components/GitHubReleasesCard';
 import { flashFirmware, getFirmwareStatus, listFirmware, uploadFirmware } from '@/lib/api';
 import { useDevice } from '@/context/DeviceContext';
+import { useI18n } from '@/context/I18nContext';
 
 const BAUDS = [115200, 230400, 460800, 921600];
 
 export default function FirmwarePage() {
+    const { t } = useI18n();
     const { status } = useDevice();
     const fileRef = useRef(null);
     const [files, setFiles] = useState([]);
@@ -50,62 +51,54 @@ export default function FirmwarePage() {
         if (!file) return;
         try {
             const r = await uploadFirmware(file);
-            toast.success(`Uploaded ${r.name}`);
+            toast.success(t('firmware.toastUploaded', { name: r.name }));
             refresh();
             setSelected(r.name);
         } catch (err) {
-            toast.error('Upload failed');
+            toast.error(t('firmware.toastUploadFailed'));
         }
     };
 
     const onFlash = async () => {
-        if (!selected) return toast.error('Select a firmware file');
-        if (!window.confirm(`Flash ${selected} via esptool to the connected port?`)) return;
+        if (!selected) return toast.error(t('firmware.toastSelectFw'));
+        if (!window.confirm(t('firmware.confirmFlash', { name: selected }))) return;
         try {
             await flashFirmware({ file_name: selected, baud });
-            toast.message('Flash job started');
+            toast.message(t('firmware.toastJobStarted'));
             setFlashing(true);
         } catch (e) {
-            toast.error(e?.response?.data?.detail || 'Flash failed to start');
+            toast.error(e?.response?.data?.detail || t('firmware.toastJobFailed'));
         }
     };
 
     return (
         <div>
-            <PageHeader
-                title="Firmware (DIY SQM only)"
-                description="Flash ESP8266 / ESP32 firmware on a DIY SQM via esptool. Official Unihedron SQM-LU/LE/DL devices use a different (PIC) firmware procedure that is not yet supported here."
-            />
+            <PageHeader title={t('firmware.title')} description={t('firmware.description')} />
 
             <Alert className="mb-6 border-[hsl(var(--telemetry-warn))]/50 bg-[hsl(var(--telemetry-warn))]/10">
                 <AlertTriangle className="size-4 text-[hsl(var(--telemetry-warn))]" />
-                <AlertTitle>Supported targets</AlertTitle>
+                <AlertTitle>{t('firmware.supportedTitle')}</AlertTitle>
                 <AlertDescription className="text-xs">
                     <p>
-                        <strong>Supported</strong>: DIY SQM ESP8266 NodeMCU (CH340), ESP32 / ESP8266 boards (CP210x, PL2303). Uses <code>esptool</code> to write a <code>.bin</code> file at offset <code>0x0</code>.
+                        <strong>{t('firmware.supported')}</strong>: {t('firmware.supportedList')}
                     </p>
                     <p className="mt-1">
-                        <strong>Not supported (yet)</strong>: official Unihedron SQM-LU / SQM-LE / SQM-LU-DL. Their PIC firmware uses the proprietary HEX-over-serial bootloader (<span className="font-mono">x4x5x6x</span>) which requires a different implementation — coming on the roadmap.
+                        <strong>{t('firmware.notSupported')}</strong>: {t('firmware.notSupportedList')}
                     </p>
                 </AlertDescription>
             </Alert>
 
             <Alert className="mb-6 border-primary/40 bg-primary/5">
                 <InfoIcon className="size-4 text-primary" />
-                <AlertTitle>DIY SQM — 3-position front switch (e.g. SQM Pro ESP8266)</AlertTitle>
+                <AlertTitle>{t('firmware.switchTitle')}</AlertTitle>
                 <AlertDescription className="text-xs">
-                    <p>
-                        Many ESP8266-based DIY SQM PCBs (including <a href="https://github.com/TinQuen22Fr/SQM-Pro-ESP8266" target="_blank" rel="noreferrer" className="text-primary hover:underline">SQM Pro</a>) use a 3-position center-off SPDT switch:
-                    </p>
+                    <p>{t('firmware.switchIntro')}</p>
                     <ul className="mt-1 ml-5 list-disc space-y-0.5">
-                        <li><strong>Center</strong> — normal Wi-Fi mode (default, pushes data to dashboard)</li>
-                        <li><strong>D5 / GPIO14</strong> — Unihedron USB mode (answers <code>ix</code>, <code>rx</code>, <code>cx</code>… serial commands — connect via Find USB)</li>
-                        <li><strong>D3 / GPIO0</strong> — Flash boot mode (ESP8266 bootloader — only this position works for re-flashing)</li>
+                        <li>{t('firmware.switchCenter')}</li>
+                        <li>{t('firmware.switchD5')}</li>
+                        <li>{t('firmware.switchD3')}</li>
                     </ul>
-                    <p className="mt-1">
-                        To flash: set the switch to the <strong>D3 (Flash boot)</strong> position, replug or press <strong>RST</strong>, then press <strong>Start flash</strong> below.
-                        Set it back to <strong>D5 (Unihedron USB)</strong> to talk to UDM Fork, or <strong>Center</strong> for normal Wi-Fi operation.
-                    </p>
+                    <p className="mt-1">{t('firmware.switchHow')}</p>
                 </AlertDescription>
             </Alert>
 
@@ -113,9 +106,9 @@ export default function FirmwarePage() {
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <UploadCloud className="size-4 text-primary" /> Upload firmware
+                            <UploadCloud className="size-4 text-primary" /> {t('firmware.uploadTitle')}
                         </CardTitle>
-                        <CardDescription>Drop a .bin or .hex file to stage it for flashing.</CardDescription>
+                        <CardDescription>{t('firmware.uploadDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <input
@@ -127,11 +120,9 @@ export default function FirmwarePage() {
                             data-testid="firmware-file-input"
                         />
                         <Button variant="secondary" onClick={() => fileRef.current?.click()} data-testid="firmware-upload-button">
-                            <UploadCloud className="size-4 mr-2" /> Choose file
+                            <UploadCloud className="size-4 mr-2" /> {t('firmware.chooseFile')}
                         </Button>
-                        <div className="text-xs text-muted-foreground">
-                            Staged files are kept under <span className="font-mono">SQM_FIRMWARE_DIR</span>.
-                        </div>
+                        <div className="text-xs text-muted-foreground">{t('firmware.stagedHint')}</div>
                         <ul className="text-xs space-y-1 mt-2 max-h-48 overflow-auto" data-testid="firmware-file-list">
                             {files.map((f) => (
                                 <li key={f.path} className="flex items-center gap-2 font-mono">
@@ -140,24 +131,22 @@ export default function FirmwarePage() {
                                     <span className="text-muted-foreground ml-auto">{(f.size_bytes / 1024).toFixed(1)} KB</span>
                                 </li>
                             ))}
-                            {files.length === 0 && <li className="text-muted-foreground">No firmware files uploaded.</li>}
+                            {files.length === 0 && <li className="text-muted-foreground">{t('firmware.noFirmware')}</li>}
                         </ul>
                     </CardContent>
                 </Card>
 
                 <Card className="xl:col-span-6 bg-card/60">
                     <CardHeader>
-                        <CardTitle>Flash to device</CardTitle>
-                        <CardDescription>
-                            Targets the currently-connected port. The serial connection will be closed first.
-                        </CardDescription>
+                        <CardTitle>{t('firmware.flashTitle')}</CardTitle>
+                        <CardDescription>{t('firmware.flashDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-1.5">
-                            <label className="text-xs text-muted-foreground">Firmware file</label>
+                            <label className="text-xs text-muted-foreground">{t('firmware.firmwareFile')}</label>
                             <Select value={selected} onValueChange={setSelected}>
                                 <SelectTrigger data-testid="firmware-select">
-                                    <SelectValue placeholder="Choose..." />
+                                    <SelectValue placeholder="..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {files.map((f) => (
@@ -169,7 +158,7 @@ export default function FirmwarePage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-xs text-muted-foreground">Flash baud</label>
+                            <label className="text-xs text-muted-foreground">{t('firmware.flashBaud')}</label>
                             <Select value={String(baud)} onValueChange={(v) => setBaud(Number(v))}>
                                 <SelectTrigger data-testid="flash-baud-select">
                                     <SelectValue />
@@ -187,7 +176,7 @@ export default function FirmwarePage() {
                             data-testid="firmware-flash-button"
                         >
                             {flashing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <ZapOff className="size-4 mr-2" />}
-                            Start flash
+                            {t('firmware.startFlash')}
                         </Button>
                         {progress && (progress.running || progress.stage !== 'idle') && (
                             <div className="space-y-2">
