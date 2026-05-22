@@ -81,18 +81,51 @@ fi
 # ---------- Frontend ----------
 log "Setting up React frontend..."
 cd "$ROOT/frontend"
-if command -v yarn >/dev/null 2>&1; then
-    yarn install
-else
-    warn "'yarn' is not installed."
-    warn "Install it with one of:"
-    warn "  sudo npm install -g yarn"
-    warn "  curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/yarnkey.gpg && \\"
-    warn "    echo 'deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian/ stable main' | sudo tee /etc/apt/sources.list.d/yarn.list && \\"
-    warn "    sudo apt update && sudo apt install yarn"
-    warn "Then re-run this installer (it will resume)."
+
+# Need Node first
+if ! command -v node >/dev/null 2>&1; then
+    err "Node.js is not installed."
+    err "Install it with:  sudo apt-get install -y nodejs npm"
+    err "Or (preferred, newer Node): https://github.com/nodesource/distributions"
     exit 1
 fi
+log "Using node $(node --version)"
+
+# Resolve a working 'yarn' command
+YARN_BIN=""
+if command -v yarn >/dev/null 2>&1; then
+    YARN_BIN="yarn"
+elif command -v corepack >/dev/null 2>&1; then
+    # Node >=16.10 ships corepack which can provide yarn without a global install
+    log "yarn not found - enabling it via corepack (bundled with Node)..."
+    if corepack enable 2>/dev/null || sudo corepack enable; then
+        corepack prepare yarn@stable --activate >/dev/null 2>&1 || true
+        if command -v yarn >/dev/null 2>&1; then
+            YARN_BIN="yarn"
+        fi
+    fi
+fi
+
+# Last-resort: try npm install
+if [ -z "$YARN_BIN" ] && command -v npm >/dev/null 2>&1; then
+    warn "Trying 'sudo npm install -g yarn' as a fallback..."
+    if sudo npm install -g yarn >/dev/null 2>&1; then
+        YARN_BIN="yarn"
+    fi
+fi
+
+if [ -z "$YARN_BIN" ]; then
+    err "Could not find or install Yarn automatically."
+    err "Please install it manually with one of:"
+    err "  sudo corepack enable && corepack prepare yarn@stable --activate"
+    err "  sudo npm install -g yarn"
+    err "  sudo apt install yarn   (after adding the official Yarn apt repo)"
+    err "Then re-run this installer (it resumes from this step)."
+    exit 1
+fi
+
+log "Using yarn $(yarn --version 2>/dev/null || echo '(version unknown)')"
+yarn install
 log "Frontend dependencies installed."
 
 # Initial frontend .env if missing
