@@ -91,6 +91,40 @@ To uninstall:
 ./scripts/uninstall-systemd.sh
 ```
 
+### Native-feeling desktop app (no browser chrome)
+
+After the systemd services are installed, you can also install a desktop
+launcher that opens the app in its own window — no URL bar, no tabs, own
+entry in the Activities menu:
+
+```bash
+./scripts/install-desktop.sh
+```
+
+This:
+1. Copies `udm-fork.svg` to `~/.local/share/icons/hicolor/scalable/apps/`
+2. Drops a `UDM-Fork.desktop` file into `~/.local/share/applications/`
+3. Picks the best available browser at launch time
+   (`chromium --app=` / `google-chrome --app=` / `brave` / `microsoft-edge`,
+   or Firefox in a dedicated profile with the URL/tab bars hidden)
+4. Ensures the systemd services are running before opening
+
+After install, search **UDM Fork** in your Activities menu (GNOME) or
+applications menu (KDE/XFCE/etc.) — it behaves like a native app.
+
+Manual launch from a shell:
+```bash
+./scripts/launch-udm.sh
+```
+
+Uninstall the desktop entry:
+```bash
+./scripts/uninstall-desktop.sh
+```
+
+> Want a truly native binary (`.deb` / `.AppImage`) instead? Open an issue —
+> Tauri packaging is on the roadmap (~10 MB native binary, no browser required).
+
 ### Serial port permissions
 
 On most distros you must be in the `dialout` group to access `/dev/ttyUSB*`:

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=UDM Fork
+GenericName=Sky Quality Meter
+Comment=Unihedron Device Manager fork — reads SQM and DIY ESP8266 SQM (CH340)
+Icon=__ICON__
+Exec=__LAUNCHER__
+Terminal=false
+Categories=Science;Astronomy;Utility;
+StartupNotify=true
+StartupWMClass=udm-fork
+Keywords=SQM;sky;quality;meter;astronomy;Unihedron;darksky;CH340;FTDI;
