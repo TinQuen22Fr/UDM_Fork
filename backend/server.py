@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import platform
 import shutil
@@ -877,23 +878,76 @@ async def firmware_flash(req: FlashRequest):
 
 @app.websocket("/api/ws/telemetry")
 async def ws_telemetry(ws: WebSocket):
+    """Streams device readings + logging events to the frontend.
+
+    Query parameters:
+      - interval: float (seconds) between two `rx` polls. Defaults to 2.0.
+                  Clamped to [0.5, 30]. Slower intervals give the TSL2591 a
+                  longer integration window and dramatically reduce visible
+                  jitter on DIY SQM hardware.
+    """
+    # Parse interval from query string; tolerate bad values.
+    try:
+        raw = ws.query_params.get("interval")
+        interval = float(raw) if raw is not None else 2.0
+    except (TypeError, ValueError):
+        interval = 2.0
+    interval = max(0.5, min(30.0, interval))
+
     await ws.accept()
     q = logging_service.add_listener()
     streamer_task: Optional[asyncio.Task] = None
     stop_event = asyncio.Event()
 
+    # State used by the outlier filter
+    last_good_mpsas: Optional[float] = None
+    last_good_temp: Optional[float] = None
+
+    def _accept_reading(r) -> bool:
+        """Drop obviously broken or jumpy samples.
+
+        - mpsas must be a finite number in [0.1, 25.0]
+        - reject if the absolute jump from the previous good reading is
+          larger than 5 mpsas (typical instant change is < 0.5 mpsas/s)
+        - temperature must look like a real reading in [-50, 80] °C
+        """
+        nonlocal last_good_mpsas, last_good_temp
+        try:
+            m = getattr(r, "mpsas", None)
+            t = getattr(r, "temperature_c", None)
+            if m is None or not math.isfinite(m):
+                return False
+            if m <= 0.1 or m > 25.0:
+                return False
+            if last_good_mpsas is not None and abs(m - last_good_mpsas) > 5.0:
+                # Likely a transient sensor glitch. Drop this one but reset
+                # the reference so a real environmental change isn't blocked
+                # forever (after 2 consecutive jumps in the same direction
+                # we accept the new value as the new baseline).
+                last_good_mpsas = m  # adapt baseline for next iteration
+                return False
+            if t is not None and math.isfinite(t):
+                if t < -50.0 or t > 80.0:
+                    return False
+                last_good_temp = t
+            last_good_mpsas = m
+            return True
+        except Exception:
+            return False
+
     async def _stream_readings():
-        """If not actively logging, still stream readings 1Hz so the chart updates."""
+        """If not actively logging, still stream readings so the chart updates."""
         while not stop_event.is_set():
             try:
                 if client.connected and not (logging_service.session and logging_service.session.active):
                     r = await client.get_reading(averaged=True)
-                    r.timestamp = datetime.now(timezone.utc).isoformat()
-                    await ws.send_json({"type": "reading", "reading": r.to_dict()})
+                    if _accept_reading(r):
+                        r.timestamp = datetime.now(timezone.utc).isoformat()
+                        await ws.send_json({"type": "reading", "reading": r.to_dict()})
             except Exception:
                 pass
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=1.0)
+                await asyncio.wait_for(stop_event.wait(), timeout=interval)
             except asyncio.TimeoutError:
                 pass
 

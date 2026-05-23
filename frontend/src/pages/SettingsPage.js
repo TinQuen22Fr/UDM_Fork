@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Globe, Moon, Languages, LayoutDashboard, Info, Save, Eraser, Loader2, Wand2 } from 'lucide-react';
+import { Globe, Moon, Languages, LayoutDashboard, Info, Save, Eraser, Loader2, Wand2, Activity } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { useI18n } from '@/context/I18nContext';
 import { useDevice } from '@/context/DeviceContext';
@@ -17,7 +17,7 @@ const STORAGE_SENSOR_KEY = 'udm.dashboard.sensorKey';
 
 export default function SettingsPage() {
     const { t, lang, setLang } = useI18n();
-    const { status } = useDevice();
+    const { status, pollSec, setPollSec, smoothN, setSmoothN } = useDevice();
     const [nightVision, setNightVision] = useState(() => localStorage.getItem('udm.nightVision') === '1');
     const [sensorId, setSensorId] = useState(() => localStorage.getItem(STORAGE_SENSOR_ID) || '');
     const [sensorKey, setSensorKey] = useState(() => localStorage.getItem(STORAGE_SENSOR_KEY) || '');
@@ -201,6 +201,69 @@ export default function SettingsPage() {
                             <Button onClick={clearSensorConfig} variant="ghost" data-testid="settings-clear-sensor">
                                 <Eraser className="size-4 mr-2" /> {t('dashboard.clearSensor')}
                             </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Smoothing & Stability */}
+                <Card className="xl:col-span-12 bg-card/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Activity className="size-4 text-primary" /> {t('settings.smoothing')}
+                        </CardTitle>
+                        <CardDescription>{t('settings.smoothingDesc')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                        {/* Poll interval */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                            <div className="md:col-span-5">
+                                <div className="text-sm font-medium">{t('settings.pollIntervalLabel')}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{t('settings.pollIntervalDesc')}</div>
+                            </div>
+                            <div className="md:col-span-7 flex flex-wrap gap-2">
+                                {[1, 2, 3, 5, 10].map((sec) => (
+                                    <button
+                                        type="button"
+                                        key={sec}
+                                        onClick={() => setPollSec(sec)}
+                                        data-testid={`settings-poll-${sec}s`}
+                                        className={cn(
+                                            'min-w-[64px] rounded-md border px-3 py-1.5 text-xs font-mono transition-colors',
+                                            Math.abs(pollSec - sec) < 0.01
+                                                ? 'border-primary/60 bg-primary/10 text-foreground'
+                                                : 'border-border hover:bg-accent/40 text-muted-foreground'
+                                        )}
+                                    >
+                                        {sec}s
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Smoothing window */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                            <div className="md:col-span-5">
+                                <div className="text-sm font-medium">{t('settings.smoothNLabel')}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{t('settings.smoothNDesc')}</div>
+                            </div>
+                            <div className="md:col-span-7 flex flex-wrap gap-2">
+                                {[1, 3, 5, 10, 20].map((n) => (
+                                    <button
+                                        type="button"
+                                        key={n}
+                                        onClick={() => setSmoothN(n)}
+                                        data-testid={`settings-smooth-${n}`}
+                                        className={cn(
+                                            'min-w-[64px] rounded-md border px-3 py-1.5 text-xs font-mono transition-colors',
+                                            smoothN === n
+                                                ? 'border-primary/60 bg-primary/10 text-foreground'
+                                                : 'border-border hover:bg-accent/40 text-muted-foreground'
+                                        )}
+                                    >
+                                        {n === 1 ? t('settings.smoothOff') : `${n} ${t('settings.samples')}`}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

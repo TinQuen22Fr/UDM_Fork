@@ -22,7 +22,7 @@ function mpsasStatus(v) {
 
 export default function ReadingsPage() {
     const { t } = useI18n();
-    const { status, latestReading, history, clearHistory } = useDevice();
+    const { status, latestReading, smoothedReading, history, clearHistory } = useDevice();
     const [manualLoading, setManualLoading] = useState(false);
     const [averaged, setAveraged] = useState(true);
     const [manualResp, setManualResp] = useState(null);
@@ -41,7 +41,10 @@ export default function ReadingsPage() {
         }
     };
 
-    const r = latestReading;
+    // Display uses the smoothed reading so the stat cards stop jumping; fall
+    // back to the raw latest sample for non-smoothed metrics.
+    const r = smoothedReading ?? null;
+    const raw = latestReading;
 
     return (
         <div>
@@ -77,19 +80,19 @@ export default function ReadingsPage() {
                 />
                 <StatCard
                     label={t('readings.temperature')}
-                    value={r?.temperature_c != null ? r.temperature_c.toFixed(1) : '—'}
+                    value={r?.temperature != null ? r.temperature.toFixed(1) : (raw?.temperature_c != null ? raw.temperature_c.toFixed(1) : '—')}
                     unit="°C"
                     testid="live-temp-value"
                 />
                 <StatCard
                     label={t('readings.frequency')}
-                    value={r?.frequency_hz != null ? r.frequency_hz.toFixed(0) : '—'}
+                    value={r?.frequency != null ? r.frequency.toFixed(0) : (raw?.frequency_hz != null ? raw.frequency_hz.toFixed(0) : '—')}
                     unit="Hz"
                     testid="live-freq-value"
                 />
                 <StatCard
                     label={t('readings.counts')}
-                    value={r?.counts != null ? r.counts.toLocaleString() : '—'}
+                    value={r?.counts != null ? Math.round(r.counts).toLocaleString() : (raw?.counts != null ? raw.counts.toLocaleString() : '—')}
                     unit={t('readings.period')}
                     testid="live-counts-value"
                 />

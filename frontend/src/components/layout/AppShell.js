@@ -122,7 +122,7 @@ function SidebarContent({ onNavigate }) {
 export function AppShell({ children }) {
     const [open, setOpen] = useState(false);
     const [nightVision, setNightVision] = useState(() => localStorage.getItem('udm.nightVision') === '1');
-    const { status, wsConnected, latestReading } = useDevice();
+    const { status, wsConnected, latestReading, smoothedReading } = useDevice();
     const { t } = useI18n();
 
     useEffect(() => {
@@ -216,18 +216,22 @@ export function AppShell({ children }) {
                     </div>
 
                     <div className="ml-auto flex items-center gap-2 sm:gap-4">
-                        {latestReading?.mpsas != null && (
+                        {(smoothedReading?.mpsas != null || latestReading?.mpsas != null) && (
                             <div className="hidden md:flex items-center gap-3 text-xs font-variant-numeric tabular-nums">
                                 <div className="font-mono">
                                     <span className="text-muted-foreground mr-1">mpsas</span>
                                     <span className="text-foreground font-semibold inline-block min-w-[3.5ch] text-right">
-                                        {latestReading.mpsas != null ? latestReading.mpsas.toFixed(2) : '—'}
+                                        {(smoothedReading?.mpsas ?? latestReading?.mpsas) != null
+                                            ? (smoothedReading?.mpsas ?? latestReading?.mpsas).toFixed(2)
+                                            : '—'}
                                     </span>
                                 </div>
                                 <div className="font-mono">
                                     <span className="text-muted-foreground mr-1">T</span>
                                     <span className="inline-block min-w-[3.5ch] text-right">
-                                        {latestReading.temperature_c != null ? latestReading.temperature_c.toFixed(1) : '—'}
+                                        {(smoothedReading?.temperature ?? latestReading?.temperature_c) != null
+                                            ? (smoothedReading?.temperature ?? latestReading?.temperature_c).toFixed(1)
+                                            : '—'}
                                     </span>
                                     <span>°C</span>
                                 </div>
