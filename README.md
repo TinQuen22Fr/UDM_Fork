@@ -47,7 +47,6 @@ The app is a **hybrid local web app**:
 ```bash
 git clone <your-fork-url> udm-fork
 cd udm-fork
-
 # One-shot installer: deps + systemd services + 'UDM Fork' app menu entry
 ./udm-fork install
 ```
@@ -76,6 +75,24 @@ Then just run:
 | `./udm-fork open` | just open the app window (assumes services are running) |
 | `./udm-fork install` | first-time install (deps + systemd + desktop entry) |
 | `./udm-fork doctor` | diagnostic checks (Python, Node, services, udev, dialout…) |
+| `./udm-fork update` | pull latest code, rebuild frontend, restart services |
+| `./udm-update` | same as above (shortcut) |
+
+### Updating after a `git pull`
+
+The frontend is served as a **pre-built static bundle** under `frontend/build/`,
+so a `systemctl restart` alone will NOT pick up new React code. After every
+`git pull` you need to either:
+
+```bash
+./udm-update            # the easy way (pull + rebuild + restart)
+# or
+./udm-fork update       # same thing through the main launcher
+# or, for the systemd-installer flow:
+REBUILD=1 ./scripts/install-systemd.sh
+```
+
+Then hard-reload the browser (Ctrl+Shift+R) to flush its cache.
 
 ### Manual / step-by-step alternative
 

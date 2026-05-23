@@ -10,6 +10,7 @@
 #   ./udm-fork logs      tail backend + frontend logs
 #   ./udm-fork open      just open the app window (assumes services are running)
 #   ./udm-fork install   first-time install: deps + systemd services + desktop entry
+#   ./udm-fork update    pull latest code, rebuild frontend, restart services
 #   ./udm-fork doctor    diagnostic checks
 #   ./udm-fork --help    show this help
 #
@@ -123,6 +124,10 @@ cmd_install() {
     log "All set! Launch with:  ./udm-fork     (or click 'UDM Fork' in your apps menu)"
 }
 
+cmd_update() {
+    "$HERE/scripts/update.sh"
+}
+
 cmd_doctor() {
     hi "UDM Fork doctor"
     echo "  Root           : $HERE"
@@ -160,6 +165,7 @@ case "${1:-}" in
     status)         cmd_status ;;
     logs)           cmd_logs ;;
     install)        cmd_install ;;
+    update)         cmd_update ;;
     doctor)         cmd_doctor ;;
     -h|--help|help) usage ;;
     *)              err "Unknown command: $1"; echo ""; usage; exit 1 ;;
